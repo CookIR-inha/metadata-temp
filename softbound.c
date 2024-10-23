@@ -39,9 +39,15 @@ bool get_metadata(void *ptr)
   return (metadata.base != NULL && metadata.bound != NULL);
 }
 
-void bound_check(void *ptr)
+void bound_check(void *ptr, void *access)
 {
-  printf("memory access at %p\n", ptr);
+  printf("memory access at %p\n", access);
+  size_t index = hash(ptr);
+  void *bound = metadata_table[index].bound;
+  printf("bound info: %p\n",bound);
+  if(bound < access ){
+    printf("*** out-of-bound access ***\n");
+  }
 }
 
 void print_metadata_table()
