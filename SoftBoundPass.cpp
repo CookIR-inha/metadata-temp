@@ -4,10 +4,11 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Passes/PassBuilder.h"
-#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Passes/PassPlugin.h"
+#include "llvm/Passes/PassBuilder.h"
 #include <unordered_set>
+#include <unordered_map>
 
 using namespace llvm;
 
@@ -15,56 +16,69 @@ namespace
 {
   struct SoftBoundPass : public PassInfoMixin<SoftBoundPass>
   {
-    static char ID;
-
     std::unordered_set<Value *> mallocPointers;
+    std::unordered_map<Value *, Value *> pointerLocations;
 
-    PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM) {
-      FunctionCallee setMetaData = M.getOrInsertFunction(
-      "set_metadata",
-          FunctionType::get(
-              Type::getVoidTy(M.getContext()), // 반환 타입: void
-              {Type::getInt8PtrTy(M.getContext()), Type::getInt64Ty(M.getContext())}, // 인자: (void* ptr, size_t size)
-              false // 가변 인자 여부: false
-          )
-      );
-
-      // get_metadata 함수 선언 또는 삽입
-      FunctionCallee getMetaData = M.getOrInsertFunction(
-          "get_metadata",
-          FunctionType::get(
-              Type::getInt1Ty(M.getContext()), // 반환 타입: bool (int1)
-              {Type::getInt8PtrTy(M.getContext())}, // 인자: (void* ptr)
-              false // 가변 인자 여부: false
-          )
-      );
-
-      // bound_check 함수 선언 또는 삽입
-      FunctionCallee boundCheck = M.getOrInsertFunction(
-          "bound_check",
-          FunctionType::get(
-              Type::getVoidTy(M.getContext()), // 반환 타입: void
-              {Type::getInt8PtrTy(M.getContext()), Type::getInt8PtrTy(M.getContext())}, // 인자: (void* ptr, void* ptr)
-              false // 가변 인자 여부: false
-          )
-      );
-
-      // print_metadata_table 함수 선언 또는 삽입
-      FunctionCallee printMetadataTable = M.getOrInsertFunction(
-          "print_metadata_table",
-          FunctionType::get(
-              Type::getVoidTy(M.getContext()), // 반환 타입: void
-              false // 인자 없음
-          )
-      );
-      if (!setMetaData || !printMetadataTable)
+    void trackPointer(Value *ptr, Value *location = nullptr)
+    {
+      if (!mallocPointers.count(ptr))
       {
-        errs() << "Error: Couldn't find function 'set_metadata' or 'check_bounds'. Make sure hello.c is linked.\n";
-        return PreservedAnalyses::none();
+        mallocPointers.insert(ptr);
+        errs() << "Tracking pointer: " << *ptr << "\n";
+      }
+      if (location)
+      {
+        pointerLocations[location] = ptr; // 포인터가 저장된 위치도 추적
+        errs() << "Tracking pointer storage location: " << *location << " -> " << *ptr << "\n";
+      }
+    }
+
+    bool isMallocRelatedPointer(Value *ptr, Value *&originalPtr)
+    {
+      if (mallocPointers.count(ptr) > 0)
+      {
+        originalPtr = ptr; // ptr 자체가 malloc된 포인터인 경우
+        return true;
+      }
+      if (pointerLocations.count(ptr) > 0)
+      {
+        Value *trackedPtr = pointerLocations[ptr];
+        originalPtr = pointerLocations[ptr]; // 파생된 포인터인 경우 원래 포인터 찾기
+        return mallocPointers.count(trackedPtr) > 0;
+      }
+      return false;
+    }
+
+    PreservedAnalyses run(Module &M, ModuleAnalysisManager &)
+    {
+      Function *setMetaData = M.getFunction("set_metadata");
+      Function *printMetadataTable = M.getFunction("print_metadata_table");
+      Function *boundCheck = M.getFunction("bound_check");
+      Function *getMetaData = M.getFunction("get_metadata");
+
+      if (!setMetaData || !printMetadataTable || !boundCheck || !getMetaData)
+      {
+        errs() << "Error: Couldn't find function\n";
+        return PreservedAnalyses::all();
       }
 
       for (Function &F : M)
       {
+        if (F.getName() == "main")
+        {
+          Instruction &firstInst = *F.getEntryBlock().getFirstInsertionPt();
+          IRBuilder<> builder(&firstInst);
+
+          Function *initFunc = M.getFunction("initialize_metadata_table");
+          if (!initFunc)
+          {
+            FunctionType *initFuncType = FunctionType::get(Type::getVoidTy(F.getContext()), false);
+            initFunc = Function::Create(initFuncType, Function::ExternalLinkage, "initialize_metadata_table", M);
+          }
+
+          builder.CreateCall(initFunc);
+          errs() << "Inserted initialize_metadata_table at the beginning of main func\n";
+        }
         for (BasicBlock &BB : F)
         {
           for (Instruction &I : BB)
@@ -80,86 +94,94 @@ namespace
                 Value *mallocPtr = callInst;
                 Value *mallocSize = callInst->getArgOperand(0);
 
-                mallocPointers.insert(mallocPtr);
+                trackPointer(callInst);
 
-                errs() << "\nMalloc found: setMetaData at " << *mallocPtr << "\n\n";
+                errs() << "\nMalloc found: setMetaData at " << *mallocPtr << "\n";
 
                 builder.CreateCall(setMetaData, {mallocPtr, mallocSize});
+              }
+            }
+            if (auto *gepInst = dyn_cast<GetElementPtrInst>(&I))
+            {
+              Value *basePtr = gepInst->getPointerOperand();
+              if (isMallocRelatedPointer(basePtr, basePtr))
+              {
+                trackPointer(gepInst); // gep의 결과 포인터도 추적
+                errs() << "GEP: " << *gepInst << "\n";
+                errs() << "Inserted bound_check (GEP)\n";
+              }
+            }
+            if (auto *bitcastInst = dyn_cast<BitCastInst>(&I))
+            {
+              Value *basePtr = bitcastInst->getOperand(0);
+              if (isMallocRelatedPointer(basePtr, basePtr))
+              {
+                trackPointer(bitcastInst); // bitcast의 결과 포인터도 추적
+                errs() << "BITCAST: " << *bitcastInst << "\n";
+
+                IRBuilder<> builder(bitcastInst->getNextNode());
+                errs() << "Inserted bound_check (BitCast)\n";
               }
             }
             if (auto *loadInst = dyn_cast<LoadInst>(&I))
             {
               Value *basePtr = loadInst->getPointerOperand();
+              Value *originalPtr = nullptr; // 원래의 malloc된 포인터를 저장할 변수
 
-              IRBuilder<> builder(loadInst);
-              Value *castedPtr = builder.CreateBitCast(basePtr, Type::getInt8PtrTy(M.getContext()));
-
-              errs() << "load found: malloced?" << " basePtr: " << basePtr << " castedPtr: " << castedPtr << "\n";
-              if (mallocPointers.find(basePtr) != mallocPointers.end())
+              if (isMallocRelatedPointer(basePtr, originalPtr))
               {
-                errs() << "true\n";
+                IRBuilder<> builder(loadInst);
+                Value *castedPtr = builder.CreateBitCast(originalPtr, Type::getInt8PtrTy(M.getContext()));
+                Value *castedAccess = builder.CreateBitCast(basePtr, Type::getInt8PtrTy(M.getContext()));
+
+                errs() << "Load found for malloced-related pointer: " << *basePtr << "\n";
+                builder.CreateCall(boundCheck, {castedPtr, castedAccess}); // Bound Check 호출
+                errs() << "Inserted bound_check (Load)\n";
+                // malloc 포인터 목록 출력
+                errs() << "Current mallocPointers contents (Load):\n";
+                for (auto *ptr : mallocPointers)
+                {
+                  errs() << *ptr << "\n";
+                }
               }
               else
               {
-                errs() << "false\n";
+                errs() << "Load found for non-malloced pointer: " << *basePtr << "\n";
               }
             }
+
             if (auto *storeInst = dyn_cast<StoreInst>(&I))
             {
-              Value *basePtr = storeInst->getPointerOperand();
+              Value *storedValue = storeInst->getValueOperand();       // 저장되는 값
+              Value *storageLocation = storeInst->getPointerOperand(); // 저장되는 위치
+              Value *originalPtr = nullptr;                            // 원래의 malloc된 포인터를 저장할 변수
 
-              IRBuilder<> builder(storeInst);
-              Value *castedPtr = builder.CreateBitCast(basePtr, Type::getInt8PtrTy(M.getContext()));
-
-              errs() << "store found: malloced?" << " basePtr: " << basePtr << " castedPtr: " << castedPtr << "\n";
-              if (mallocPointers.find(basePtr) != mallocPointers.end())
+              if (isMallocRelatedPointer(storedValue, originalPtr))
               {
-                errs() << "true\n";
+                IRBuilder<> builder(storeInst);
+                Value *castedPtr = builder.CreateBitCast(originalPtr, Type::getInt8PtrTy(M.getContext()));
+                Value *castedAccess = builder.CreateBitCast(storageLocation, Type::getInt8PtrTy(M.getContext()));
+
+                trackPointer(storedValue, storageLocation); // 저장 위치도 추적
+                errs() << "Store found for malloc-related pointer: " << *storedValue << "\n";
+                builder.CreateCall(boundCheck, {castedPtr, castedAccess}); // Bound Check 호출
+                errs() << "Inserted bound_check (Store)\n";
+                // malloc 포인터 목록 출력
+                errs() << "Current mallocPointers contents (Store):\n";
+                for (auto *ptr : mallocPointers)
+                {
+                  errs() << *ptr << "\n";
+                }
               }
               else
               {
-                errs() << "false\n";
+                errs() << "Store found for non-malloced pointer: " << *storedValue << "\n";
               }
-            }
-            if (auto *gepInst = dyn_cast<GetElementPtrInst>(&I))
-            {
-                IRBuilder<> builder(gepInst->getNextNode()); // Insert after GEP
-                Value *basePtr = gepInst->getPointerOperand();
-                Value *calculatedAddress = gepInst; // Use the GEP result directly
-
-                // Cast pointers to i8* if required by boundCheck
-                Value *basePtrCasted = builder.CreateBitCast(basePtr, Type::getInt8PtrTy(M.getContext()));
-                Value *calculatedAddressCasted = builder.CreateBitCast(calculatedAddress, Type::getInt8PtrTy(M.getContext()));
-
-                // Call the boundCheck function
-                builder.CreateCall(boundCheck, {basePtrCasted, calculatedAddressCasted});
-              
-              /*
-              for (auto *user : gepInst->users())
-              {
-                if (auto *loadInst = dyn_cast<LoadInst>(user))
-                {
-                  errs() << "load found\n";
-                  IRBuilder<> builder(loadInst);
-
-                  Value *ptr = loadInst->getPointerOperand();
-                  Value *castedPtr = builder.CreateBitCast(ptr, Type::getInt8PtrTy(M.getContext()));
-                  builder.CreateCall(boundCheck, {castedPtr});
-                }
-                if (auto *storeInst = dyn_cast<StoreInst>(user))
-                {
-                  errs() << "store found\n";
-                  IRBuilder<> builder(storeInst);
-
-                  Value *ptr = storeInst->getPointerOperand();
-                  Value *castedPtr = builder.CreateBitCast(ptr, Type::getInt8PtrTy(M.getContext()));
-                  builder.CreateCall(boundCheck, {castedPtr});
-                }
-              }*/
             }
           }
         }
       }
+
       Function *mainFunc = M.getFunction("main");
       if (mainFunc)
       {
@@ -169,22 +191,28 @@ namespace
           {
             IRBuilder<> builder(retInst);
             builder.CreateCall(printMetadataTable);
+            errs() << "Inserted print_metadata_table at the end of main func\n";
           }
         }
       }
 
-      return PreservedAnalyses::none();
+      return PreservedAnalyses::all();
     }
   };
 }
 
-llvm::PassPluginLibraryInfo getSoftBoundPassPluginInfo() {
+llvm::PassPluginLibraryInfo
+getSoftBoundPassPluginInfo()
+{
   return {LLVM_PLUGIN_API_VERSION, "SoftBoundPass", LLVM_VERSION_STRING,
-          [](PassBuilder &PB) {
+          [](PassBuilder &PB)
+          {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, ModulePassManager &MPM,
-                   ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "softbound") {
+                   ArrayRef<PassBuilder::PipelineElement>)
+                {
+                  if (Name == "softbound-pass")
+                  {
                     MPM.addPass(SoftBoundPass());
                     return true;
                   }
@@ -193,6 +221,7 @@ llvm::PassPluginLibraryInfo getSoftBoundPassPluginInfo() {
           }};
 }
 
-extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo()
+{
   return getSoftBoundPassPluginInfo();
 }
