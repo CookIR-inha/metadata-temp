@@ -16,8 +16,9 @@ namespace
 {
   struct SoftBoundPass : public PassInfoMixin<SoftBoundPass>
   {
-    std::unordered_set<Value *> mallocPointers;
-    std::unordered_map<Value *, Value *> pointerLocations;
+    std::unordered_set<Value *> mallocPointers;            // pi2
+    std::unordered_map<Value *, Value *> pointerLocations; // pi_offset : pi2
+    std::unordered_map<Value *, Value *> derivedPointers;  // GEP로 생성된 파생 포인터 : 원본 포인터
 
     void trackPointer(Value *ptr, Value *location = nullptr)
     {
@@ -25,12 +26,35 @@ namespace
       {
         mallocPointers.insert(ptr);
         errs() << "Tracking pointer: " << *ptr << "\n";
+        printPointerStructures();
       }
       if (location)
       {
         pointerLocations[location] = ptr; // 포인터가 저장된 위치도 추적
         errs() << "Tracking pointer storage location: " << *location << " -> " << *ptr << "\n";
+        printPointerStructures();
       }
+    }
+
+    void printPointerStructures()
+    {
+      errs() << "===== Current Pointer Structures =====\n";
+
+      // mallocPointers에 저장된 원본 포인터 출력
+      errs() << "Malloc Pointers:\n";
+      for (auto *ptr : mallocPointers)
+      {
+        errs() << "  " << *ptr << "\n";
+      }
+
+      // pointerLocations에 저장된 파생 포인터 출력
+      errs() << "Pointer Locations:\n";
+      for (auto &entry : pointerLocations)
+      {
+        errs() << "  Location: " << *entry.first << " -> Points to: " << *entry.second << "\n";
+      }
+
+      errs() << "======================================\n";
     }
 
     bool isMallocRelatedPointer(Value *ptr, Value *&originalPtr)
@@ -94,9 +118,8 @@ namespace
                 Value *mallocPtr = callInst;
                 Value *mallocSize = callInst->getArgOperand(0);
 
-                trackPointer(callInst);
-
                 errs() << "\nMalloc found: setMetaData at " << *mallocPtr << "\n";
+                trackPointer(callInst);
 
                 builder.CreateCall(setMetaData, {mallocPtr, mallocSize});
               }
@@ -104,49 +127,63 @@ namespace
             if (auto *gepInst = dyn_cast<GetElementPtrInst>(&I))
             {
               Value *basePtr = gepInst->getPointerOperand();
-              if (isMallocRelatedPointer(basePtr, basePtr))
+              Value *originalPtr = nullptr;
+
+              if (isMallocRelatedPointer(basePtr, originalPtr))
               {
-                trackPointer(gepInst); // gep의 결과 포인터도 추적
-                errs() << "GEP: " << *gepInst << "\n";
-                errs() << "Inserted bound_check (GEP)\n";
+                // GEP 연산 전 포인터와 연산 후 파생 포인터 모두 저장
+                pointerLocations[basePtr] = originalPtr; // 연산 전 포인터를 기준으로 원본 포인터와 연관
+                pointerLocations[gepInst] = originalPtr; // 연산 후 파생된 포인터를 원본 포인터와 연관
+
+                errs() << "Tracking GEP-derived pointer:\n"
+                       << "  Original base pointer: " << *basePtr << "\n"
+                       << "  Derived pointer (result of GEP): " << *gepInst << "\n"
+                       << "  Associated malloc-related pointer: " << *originalPtr << "\n";
               }
             }
+
             if (auto *bitcastInst = dyn_cast<BitCastInst>(&I))
             {
-              Value *basePtr = bitcastInst->getOperand(0);
-              if (isMallocRelatedPointer(basePtr, basePtr))
               {
-                trackPointer(bitcastInst); // bitcast의 결과 포인터도 추적
-                errs() << "BITCAST: " << *bitcastInst << "\n";
+                Value *basePtr = bitcastInst->getOperand(0);
+                Value *originalPtr = nullptr;
 
-                IRBuilder<> builder(bitcastInst->getNextNode());
-                errs() << "Inserted bound_check (BitCast)\n";
+                // basePtr이 malloc과 관련된 포인터인지 확인
+                if (isMallocRelatedPointer(basePtr, originalPtr))
+                {
+                  // BitCast 연산의 결과 포인터를 원본 포인터와 연관 지어 추적
+                  trackPointer(bitcastInst, originalPtr);
+                  errs() << "Tracking BitCast-derived pointer: " << *bitcastInst << " from base pointer: " << *basePtr << "\n";
+                }
               }
             }
             if (auto *loadInst = dyn_cast<LoadInst>(&I))
             {
-              Value *basePtr = loadInst->getPointerOperand();
+              Value *basePtr = loadInst->getPointerOperand(); // 값을 읽어오는 위치
+              Value *pointerOperand = loadInst->getPointerOperand();
               Value *originalPtr = nullptr; // 원래의 malloc된 포인터를 저장할 변수
 
               if (isMallocRelatedPointer(basePtr, originalPtr))
               {
                 IRBuilder<> builder(loadInst);
+
+                // Load 결과 값을 원본 malloc 포인터와 연관 지음
+                pointerLocations[loadInst] = originalPtr;
+
+                // basePtr이 가리키는 값을 로드하여 access로 사용
+                Value *accessPtr = builder.CreateLoad(basePtr->getType()->getPointerElementType(), basePtr);
+
                 Value *castedPtr = builder.CreateBitCast(originalPtr, Type::getInt8PtrTy(M.getContext()));
-                Value *castedAccess = builder.CreateBitCast(basePtr, Type::getInt8PtrTy(M.getContext()));
+                Value *castedAccess = builder.CreateBitCast(accessPtr, Type::getInt8PtrTy(M.getContext()));
 
                 errs() << "Load found for malloced-related pointer: " << *basePtr << "\n";
-                builder.CreateCall(boundCheck, {castedPtr, castedAccess}); // Bound Check 호출
-                errs() << "Inserted bound_check (Load)\n";
-                // malloc 포인터 목록 출력
-                errs() << "Current mallocPointers contents (Load):\n";
-                for (auto *ptr : mallocPointers)
-                {
-                  errs() << *ptr << "\n";
-                }
+                Value *instStr = builder.CreateGlobalStringPtr("Load");
+                // builder.CreateCall(boundCheck, {castedPtr, castedAccess, instStr}); // Bound Check 호출
+                // errs() << "Inserted bound_check (Load)\n";
               }
               else
               {
-                errs() << "Load found for non-malloced pointer: " << *basePtr << "\n";
+                // errs() << "Load found for non-malloced pointer: " << *basePtr << "\n";
               }
             }
 
@@ -156,26 +193,36 @@ namespace
               Value *storageLocation = storeInst->getPointerOperand(); // 저장되는 위치
               Value *originalPtr = nullptr;                            // 원래의 malloc된 포인터를 저장할 변수
 
-              if (isMallocRelatedPointer(storedValue, originalPtr))
+              if (storedValue->getType()->isPointerTy() && isMallocRelatedPointer(storedValue, originalPtr))
               {
                 IRBuilder<> builder(storeInst);
+
                 Value *castedPtr = builder.CreateBitCast(originalPtr, Type::getInt8PtrTy(M.getContext()));
                 Value *castedAccess = builder.CreateBitCast(storageLocation, Type::getInt8PtrTy(M.getContext()));
 
+                errs() << "Store found for malloc-related pointer stored in storageLocation: " << *storedValue << "\n";
+                Value *instStr = builder.CreateGlobalStringPtr("Store");
+                // builder.CreateCall(boundCheck, {castedPtr, castedAccess, instStr}); // Bound Check 호출
+                errs() << "Inserted bound_check (Store) on storageLocation\n";
+
                 trackPointer(storedValue, storageLocation); // 저장 위치도 추적
-                errs() << "Store found for malloc-related pointer: " << *storedValue << "\n";
-                builder.CreateCall(boundCheck, {castedPtr, castedAccess}); // Bound Check 호출
-                errs() << "Inserted bound_check (Store)\n";
-                // malloc 포인터 목록 출력
-                errs() << "Current mallocPointers contents (Store):\n";
-                for (auto *ptr : mallocPointers)
-                {
-                  errs() << *ptr << "\n";
-                }
+              }
+              // Case 2: storedValue가 포인터가 아닌 경우, storageLocation이 malloc 관련 메모리일 때
+              else if (isMallocRelatedPointer(storageLocation, originalPtr))
+              {
+                IRBuilder<> builder(storeInst);
+
+                Value *castedPtr = builder.CreateBitCast(originalPtr, Type::getInt8PtrTy(M.getContext()));
+                Value *castedAccess = builder.CreateBitCast(storageLocation, Type::getInt8PtrTy(M.getContext()));
+
+                errs() << "Store found for non-pointer value stored in malloc-related location: " << *storageLocation << "\n";
+                Value *instStr = builder.CreateGlobalStringPtr("Store");
+                builder.CreateCall(boundCheck, {castedPtr, castedAccess, instStr}); // Bound Check 호출
+                errs() << "Inserted bound_check (Store) for non-pointer stored in malloc-related location\n";
               }
               else
               {
-                errs() << "Store found for non-malloced pointer: " << *storedValue << "\n";
+                // errs() << "Store found for non-malloced pointer or non-pointer value: " << *storedValue << "\n";
               }
             }
           }

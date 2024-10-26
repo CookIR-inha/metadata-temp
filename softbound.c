@@ -53,15 +53,29 @@ void print_metadata_table()
   }
 }
 
-void bound_check(void *ptr, void *access)
+void bound_check(void *ptr, void *access, const char *inst)
 {
-  printf("memory access at %p\n", access);
   size_t index = hash(ptr);
-  void *bound = metadata_table[index].bound;
-  printf("bound info: %p\n", bound);
-  if (bound < access)
+  Metadata metadata = metadata_table[index];
+
+  // 경계 정보가 제대로 설정되어 있는지 확인
+  if (metadata.base == NULL || metadata.bound == NULL)
   {
-    printf("*** out-of-bound access ***\n");
+    printf("Error: Metadata not found for pointer %p\n", ptr);
+    return;
+  }
+
+  printf("Memory access at %p for pointer %p[%s]\n", access, ptr, inst);
+  printf("Bound info - Base: %p, Bound: %p\n", metadata.base, metadata.bound);
+
+  // 접근 주소가 base 이상이고, bound보다 작은지 확인
+  if (access >= metadata.base && access < metadata.bound)
+  {
+    printf("Access within bounds.\n");
+  }
+  else
+  {
+    printf("*** Out-of-bound access detected ***\n");
   }
 }
 
