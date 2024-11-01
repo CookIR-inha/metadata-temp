@@ -2,9 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+int arr_global[100];
+
 int main()
 {
   printf("1. malloc.\n");
+  int arr3[100];
   int *arr = (int *)malloc(10 * sizeof(int));
   int *arr2 = (int *)malloc(10 * sizeof(int));
   printf("2. Allocated pointer: %p\n", arr);
@@ -24,7 +27,7 @@ int main()
   int index = 0x44;
   scanf("%d",&index);
   arr[index] = 100;
-
+  arr_global[36] = 100;
   free(arr);
 
   printf("5.\n");

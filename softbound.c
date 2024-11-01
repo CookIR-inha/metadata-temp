@@ -49,6 +49,10 @@ void bound_check(void *ptr, void *access)
     printf("*** out-of-bound access ***\n");
   }
 }
+void print_metadata(void *base, void *bound){
+  printf("base address: %p\n", base);
+  printf("bound address: %p\n", bound);
+}
 
 void print_metadata_table()
 {
