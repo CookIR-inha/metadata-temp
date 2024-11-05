@@ -7,74 +7,206 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "SoftBoundPass.h"
+#include <map>
 
 using namespace llvm;
+
+// using softbound's shadow space method
+/* Book-keeping structures for identifying original instructions in
+ * the program, pointers and their corresponding base and bound
+ */
 
 namespace
 {
   struct SoftBoundPass : public PassInfoMixin<SoftBoundPass>
   {
     static char ID;
-    void metadata_Alloca(Instruction &I, FunctionCallee printMetadata)
+
+    std::map<Value *, TinyPtrVector<Value *>> MValueBaseMap;
+    std::map<Value *, TinyPtrVector<Value *>> MValueBoundMap;
+
+    PointerType *MVoidPtrTy;
+    FunctionCallee setMetaData;
+    FunctionCallee printMetadata;
+    FunctionCallee getMetaData;
+    FunctionCallee boundCheck;
+    FunctionCallee printMetadataTable;
+
+    inline void associateAggregateBase(Value *Val,
+                                              TinyPtrVector<Value *> &Bases) {
+      auto NumMetadata = countMetadata(Val->getType());
+      assert(NumMetadata == Bases.size() &&
+            "Bases size is not equal to number of metadata in type");
+
+      for (auto &Base : Bases) {
+        assert(isValidMetadata(Base, MetadataType::Base) &&
+              "Invalid base metadata");
+      }
+      MValueBaseMap[Val] = Bases;
+    }
+
+    ArrayRef<Value *> getAssociatedBases(Value *Val) {
+      if (!MValueBaseMap.count(Val)) {
+        if (auto *Const = dyn_cast<Constant>(Val)) {
+          auto Bases = createConstantBases<Value>(Const);
+          associateAggregateBase(Val, Bases);
+        }
+      }
+      return MValueBaseMap[Val];
+    }
+
+    // For constants containing multiple pointers use getAssociatedBaseArray.
+    Value *getAssociatedBase(Value *pointer_operand) {
+      ArrayRef<Value *> base_array = getAssociatedBases(pointer_operand);
+      assert(base_array.size() == 1 && "getAssociatedBase called on aggregate");
+      Value *pointer_base = base_array[0];
+
+      return pointer_base;
+    }
+
+    Value *getAssociatedBound(Value *pointer_operand) {
+      ArrayRef<Value *> bound_array = getAssociatedBounds(pointer_operand);
+      assert(bound_array.size() == 1 && "getAssociatedBound called on aggregate");
+      Value *pointer_bound = bound_array[0];
+
+      return pointer_bound;
+    }
+
+    void dissociateBaseBound(Value *pointer_operand) {
+      if (MValueBaseMap.count(pointer_operand)) {
+        MValueBaseMap.erase(pointer_operand);
+      }
+      if (MValueBoundMap.count(pointer_operand)) {
+        MValueBoundMap.erase(pointer_operand);
+      }
+      assert((MValueBaseMap.count(pointer_operand) == 0) &&
+            "dissociating base failed\n");
+      assert((MValueBoundMap.count(pointer_operand) == 0) &&
+            "dissociating bound failed");
+    }
+    inline void associateBaseBound(Value *Val, Value *Base,
+                                   Value *Bound)
     {
-      auto *allocaInst = dyn_cast<AllocaInst>(&I);
-      IRBuilder<> builder(allocaInst->getNextNode());
-      Value *base = builder.CreateBitCast(allocaInst, Type::getInt8PtrTy(allocaInst->getContext()));
-
-      // Compute the size of the allocated type
-      uint64_t typeSize = I.getModule()->getDataLayout().getTypeAllocSize(allocaInst->getAllocatedType());
-
-      // Get the array size (number of elements)
-      Value *arraySize = allocaInst->getArraySize();
-
-      // Handle both constant and variable array sizes
-      Value *typeSizeValue = ConstantInt::get(arraySize->getType(), typeSize);
-      Value *endPtr;
-      // Check if arraySize is a constant integer
-      if (ConstantInt *constArraySize = dyn_cast<ConstantInt>(arraySize))
+      if (MValueBaseMap.count(Val))
       {
-        uint64_t numElements = constArraySize->getZExtValue();
-        uint64_t totalSize = typeSize * numElements;
-
-        // Create a constant for the total size
-        Value *sizeValue = ConstantInt::get(Type::getInt64Ty(I.getContext()), totalSize);
-
-        // Compute the end address (base + totalSize)
-        endPtr = builder.CreateGEP(Type::getInt8Ty(I.getContext()), base, sizeValue);
-
-        // Call printMetadata with the end address
+        dissociateBaseBound(Val);
       }
-      else
+
+      MValueBaseMap[Val] = {Base};
+      MValueBoundMap[Val] = {Bound};
+    }
+
+    bool isTypeWithPointers(Type *Ty)
+    {
+      switch (Ty->getTypeID())
       {
-        // arraySize is variable; compute total size at runtime
-
-        // Multiply arraySize * typeSize to get total size
-        Value *totalSize = builder.CreateMul(arraySize, typeSizeValue);
-
-        // Ensure totalSize is of type i64
-        totalSize = builder.CreateZExtOrTrunc(totalSize, Type::getInt64Ty(I.getContext()));
-
-        // Compute the end address (base + totalSize)
-        endPtr = builder.CreateGEP(Type::getInt8Ty(I.getContext()), base, totalSize);
-
-        // Call printMetadata with the end address
+      case Type::PointerTyID:
+        return true;
+      case Type::StructTyID:
+      {
+        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end();
+             I != E; ++I)
+        {
+          if (isTypeWithPointers(*I))
+            return true;
+        }
+        return false;
       }
-      builder.CreateCall(printMetadata, {base, endPtr});
+      case Type::ArrayTyID:
+      {
+        ArrayType *ArrayTy = cast<ArrayType>(Ty);
+        return isTypeWithPointers(ArrayTy->getElementType());
+      }
+      case Type::FixedVectorTyID:
+      {
+        FixedVectorType *FVTy = cast<FixedVectorType>(Ty);
+        return isTypeWithPointers(FVTy->getElementType());
+      }
+      case Type::ScalableVectorTyID:
+      {
+        assert(0 && "Counting pointers for scalable vectors not yet handled.");
+      }
+      default:
+        return false;
+      }
+    }
+
+    // using softbound getnextinstruction
+    Instruction *getNextInstruction(Instruction *I)
+    {
+      if (I->isTerminator())
+        return I;
+      return I->getNextNode();
+    }
+
+    // using softbound typecasting function
+    Value *castToVoidPtr(Value *Ptr, IRBuilder<> &IRB)
+    {
+      if (Ptr->getType() == MVoidPtrTy)
+        return Ptr;
+
+      if (Constant *C = dyn_cast<Constant>(Ptr))
+        return ConstantExpr::getBitCast(C, MVoidPtrTy);
+
+      return IRB.CreateBitCast(Ptr, MVoidPtrTy, Ptr->getName() + ".voidptr");
+    }
+
+    void handle_alloca(Instruction &I, FunctionCallee printMetadata)
+    {
+      auto *AI = dyn_cast<AllocaInst>(&I);
+      IRBuilder<> builder(AI->getNextNode());
+
+      Value *base = castToVoidPtr(AI, builder);
+
+      Value *index = AI->getOperand(0);
+      Value *bound = builder.CreateGEP(AI->getAllocatedType(), AI, index, "mtmp");
+
+      bound = castToVoidPtr(bound, builder);
+
+      associateBaseBound(AI, base, bound);
+
+      builder.CreateCall(printMetadata, {base, bound});
     };
+
+    void handle_store(Instruction &I)
+    {
+      StoreInst *SI = dyn_cast<StoreInst>(&I);
+      Type *type = SI->getType();
+
+      Value *src = SI->getOperand(0);
+      Value *dst = SI->getOperand(1);
+
+      Instruction *insertPoint = getNextInstruction(SI);
+      if (!isTypeWithPointers(type))
+      {
+        return;
+      }
+      else if (isa<PointerType>(SI))
+      {
+        Value *base = getAssociatedBase(src);
+        Value *bound = getAssociatedBound(src);
+      }
+
+      // vector의 경우 아직 고려하지 않음
+    };
+
     void metadata_GEP(Instruction &I, FunctionCallee printMetadata) {
-      
+
     };
 
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
     {
-      FunctionCallee setMetaData = M.getOrInsertFunction(
+      MVoidPtrTy = PointerType::getInt8PtrTy(M.getContext());
+
+      setMetaData = M.getOrInsertFunction(
           "set_metadata",
           FunctionType::get(
               Type::getVoidTy(M.getContext()),                                        // 반환 타입: void
               {Type::getInt8PtrTy(M.getContext()), Type::getInt64Ty(M.getContext())}, // 인자: (void* ptr, size_t size)
               false                                                                   // 가변 인자 여부: false
               ));
-      FunctionCallee printMetadata = M.getOrInsertFunction(
+      printMetadata = M.getOrInsertFunction(
           "print_metadata",
           FunctionType::get(
               Type::getVoidTy(M.getContext()),                                          // 반환 타입: void
@@ -82,7 +214,7 @@ namespace
               false                                                                     // 가변 인자 여부: false
               ));
       // get_metadata 함수 선언 또는 삽입
-      FunctionCallee getMetaData = M.getOrInsertFunction(
+      getMetaData = M.getOrInsertFunction(
           "get_metadata",
           FunctionType::get(
               Type::getInt1Ty(M.getContext()),      // 반환 타입: bool (int1)
@@ -91,7 +223,7 @@ namespace
               ));
 
       // bound_check 함수 선언 또는 삽입
-      FunctionCallee boundCheck = M.getOrInsertFunction(
+      boundCheck = M.getOrInsertFunction(
           "bound_check",
           FunctionType::get(
               Type::getVoidTy(M.getContext()),                                          // 반환 타입: void
@@ -100,7 +232,7 @@ namespace
               ));
 
       // print_metadata_table 함수 선언 또는 삽입
-      FunctionCallee printMetadataTable = M.getOrInsertFunction(
+      printMetadataTable = M.getOrInsertFunction(
           "print_metadata_table",
           FunctionType::get(
               Type::getVoidTy(M.getContext()), // 반환 타입: void
@@ -113,10 +245,26 @@ namespace
         {
           for (Instruction &I : BB)
           {
+            AllocaInst *AI = dyn_cast<AllocaInst>(&I);
+
+            // 1. 사용자(user) 분석을 통한 필터링
+            bool isVariableAllocation = false;
+
+            for (User *U : AI->users())
+            {
+              if (isa<StoreInst>(U) || isa<LoadInst>(U) || isa<GetElementPtrInst>(U))
+              {
+                isVariableAllocation = true;
+                break; // 변수로 사용됨을 확인한 경우
+              }
+            }
+            errs() << "Instrumenting base/bound for: " << *AI << "\n";
+            // 메타데이터 관리 작업 수행
+
             switch (I.getOpcode())
             {
             case Instruction::Alloca:
-              metadata_Alloca(I, printMetadata);
+              handle_alloca(I, printMetadata);
             case Instruction::GetElementPtr:
               metadata_GEP(I, printMetadata);
             }
