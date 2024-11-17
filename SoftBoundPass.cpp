@@ -46,7 +46,6 @@ namespace
     // For constants containing multiple pointers use getAssociatedBaseArray.
     Value *getAssociatedBase(Value *pointer_operand)
     {
-      errs() << "get assoc : " << pointer_operand << "\n";
       if (!MValueBaseMap.count(pointer_operand))
       {
         errs() << "no element\n";
@@ -187,16 +186,13 @@ namespace
       Value *access = castToVoidPtr(dst, builder);
       if (!isTypeWithPointers(src->getType()))
       {
-        builder.CreateCall(boundCheck,{base, access});
-        errs() << "returning\n";
+        builder.CreateCall(boundCheck,{bound, access});
         return;
       }
-        builder.CreateCall(printMetadata, {base, access});
       
-
       if (isa<PointerType>(type))
       {
-        builder.CreateCall(setMetaData, {src, base, bound});
+        builder.CreateCall(setMetaData, {access, base, bound});
         
       }
 
@@ -220,9 +216,6 @@ namespace
       }
       // GEP연산에서 base와 offset을 더해서 나온 access하는 주소를 구하는데, 여기서 base랑 bound를 구해서 access로 assoc 함
       associateBaseBound(GEPI, base, bound); // %ptr = base+offset, %ptr에 대한 base, bound
-      Value *test_base = getAssociatedBase(GEPI);
-      Value *test_bound = getAssociatedBound(GEPI);
-      errs() << "GEP base : " << test_base << " bound : " << test_bound <<"\n"; 
 
       // 새로운 GEP 명령어에 메타데이터 연결
     };
@@ -241,19 +234,23 @@ namespace
       Instruction *new_inst = getNextInstruction(LI);
       IRBuilder<> IRB(new_inst);
       Value *access = castToVoidPtr(pointer_operand, IRB);
-      IRB.CreateCall(printMetadata, {base, bound});
 
       if (isa<PointerType>(LoadTy))
       {
-        if (!MValueBaseMap.count(pointer_operand) && !MValueBoundMap.count(pointer_operand))
+        if (!MValueBaseMap.count(LI) && !MValueBoundMap.count(LI))
         {
-          errs() << "load : " << *LI << "\n";
-          data.Base = IRB.CreateCall(getBaseAddr, {pointer_operand});
-          data.Bound = IRB.CreateCall(getBoundAddr, {pointer_operand});
+          
+          Value *loadsrc = castToVoidPtr(pointer_operand, IRB);
+          data.Base = IRB.CreateCall(getBaseAddr, {loadsrc});
+          data.Bound = IRB.CreateCall(getBoundAddr, {loadsrc});
           associateBaseBound(LI, data.Base, data.Bound);
         }
       }
-      IRB.CreateCall(boundCheck, {base, access});
+      if(!base || !bound){
+        errs() << *LI << "\n";
+      }
+      IRB.CreateCall(printMetadata, {base,bound});
+      IRB.CreateCall(boundCheck, {bound, access});
     };
 
     void handle_bitcast(Instruction &I)
@@ -418,7 +415,6 @@ namespace
         {
           for (Instruction &I : BB)
           {
-            errs() << "About Instruction : " << I << "\n";
             IRBuilder<> IRB(&I);
             switch (I.getOpcode())
             {

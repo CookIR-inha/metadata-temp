@@ -123,10 +123,11 @@ void print_metadata_table()
   }
 }
 
-void bound_check(void *base, void *access)
+void bound_check(void *bound, void *access)
 {
-  if(base < access){
-    printf("***out-of-bound detected***");
+  if(bound < access){
+    printf("***out-of-bound detected***\n");
+    printf("accessing : %p, bound is : %p\n" ,access, bound);
     return;
   }
 }
