@@ -18,6 +18,9 @@ secondary table: primary table내 세부 위치 구분
 // #define HASH_TABLE_SIZE (1 << 20) // 2^20
 #define PRIMARY_TABLE_SIZE (1 << 25) // 48-25
 #define SECONDARY_TABLE_SIZE (1 << 20)
+static const size_t __SOFTBOUNDCETS_TRIE_SECONDARY_TABLE_ENTRIES =
+    ((size_t)4 * (size_t)1024 * (size_t)1024);
+
 
 typedef struct
 {
@@ -39,35 +42,39 @@ size_t get_secondary_index(void *ptr)
   return ((uintptr_t)ptr >> 4) & (SECONDARY_TABLE_SIZE - 1); // 하위 20비트 사용
 }
 
-void set_metadata(void *ptr, size_t size)
+void _init_metadata_table(){
+  printf("initializing table\n");
+  primary_table = (Metadata **)mmap(NULL, sizeof(Metadata) * PRIMARY_TABLE_SIZE,
+                                      PROT_READ | PROT_WRITE,
+                                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if(primary_table == MAP_FAILED){
+    printf("error table\n");
+  }
+}
+
+void *__softboundcets_trie_allocate(){
+  Metadata *secondary_entry;
+  size_t length = (__SOFTBOUNDCETS_TRIE_SECONDARY_TABLE_ENTRIES) * sizeof(Metadata);
+  secondary_entry = (Metadata *)mmap(0,length,PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  return secondary_entry;
+}
+
+void set_metadata(void *ptr, void *base, void *bound)
 {
   size_t primary_index = get_primary_index(ptr);
   size_t secondary_index = get_secondary_index(ptr);
-
-  if (!primary_table[primary_index])
-  {
-    primary_table[primary_index] = mmap(NULL, sizeof(Metadata) * SECONDARY_TABLE_SIZE,
-                                        PROT_READ | PROT_WRITE,
-                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (primary_table[primary_index] == MAP_FAILED)
-    {
-      perror("mmap failed");
-      exit(1);
-    }
-
-    // 새로 할당된 2차 테이블 초기화
-    for (size_t i = 0; i < SECONDARY_TABLE_SIZE; i++)
-    {
-      primary_table[primary_index][i].base = NULL;
-      primary_table[primary_index][i].bound = NULL;
-    }
+  Metadata *secondary_table = primary_table[primary_index];
+  if(secondary_table == NULL){
+    secondary_table = __softboundcets_trie_allocate();
+    primary_table[primary_index] = secondary_table;
   }
-
-  primary_table[primary_index][secondary_index].base = ptr;
-  primary_table[primary_index][secondary_index].bound = (char *)ptr + size;
+  Metadata *entry = &secondary_table[secondary_index];
+  entry->base = base;
+  entry->bound = bound;
   printf("Stored Malloc Info - base: %p, bound: %p\n",
          primary_table[primary_index][secondary_index].base,
          primary_table[primary_index][secondary_index].bound);
+  return;
 }
 
 bool get_metadata(void *ptr)
@@ -82,6 +89,19 @@ bool get_metadata(void *ptr)
 
   Metadata metadata = primary_table[primary_index][secondary_index];
   return (metadata.base != NULL && metadata.bound != NULL);
+}
+
+void *get_base_addr(void *access){
+  size_t primary_index = get_primary_index(access);
+  size_t secondary_index = get_secondary_index(access);
+  void* base = primary_table[primary_index][secondary_index].base;
+  return base;
+}
+void *get_bound_addr(void *access){
+  size_t primary_index = get_primary_index(access);
+  size_t secondary_index = get_secondary_index(access);
+  void* bound = primary_table[primary_index][secondary_index].bound;
+  return bound;
 }
 
 void print_metadata_table()
@@ -103,34 +123,11 @@ void print_metadata_table()
   }
 }
 
-void bound_check(void *ptr, void *access, const char *inst)
+void bound_check(void *base, void *access)
 {
-  size_t primary_index = get_primary_index(ptr);
-  size_t secondary_index = get_secondary_index(ptr);
-
-  if (!primary_table[primary_index])
-  {
-    printf("Error: Metadata not found for pointer %p\n", ptr);
+  if(base < access){
+    printf("***out-of-bound detected***");
     return;
-  }
-
-  Metadata metadata = primary_table[primary_index][secondary_index];
-  if (metadata.base == NULL || metadata.bound == NULL)
-  {
-    printf("Error: Metadata not found for pointer %p\n", ptr);
-    return;
-  }
-
-  printf("Memory access at %p for pointer %p[%s]\n", access, ptr, inst);
-  printf("Bound info - Base: %p, Bound: %p\n", metadata.base, metadata.bound);
-
-  if (access >= metadata.base && access < metadata.bound)
-  {
-    printf("Access within bounds.\n");
-  }
-  else
-  {
-    printf("*** Out-of-bound access detected ***\n");
   }
 }
 
