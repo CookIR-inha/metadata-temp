@@ -186,7 +186,7 @@ namespace
       Value *access = castToVoidPtr(dst, builder);
       if (!isTypeWithPointers(src->getType()))
       {
-        builder.CreateCall(boundCheck,{bound, access});
+        builder.CreateCall(boundCheck,{base, bound, access});
         return;
       }
       
@@ -250,7 +250,7 @@ namespace
         errs() << *LI << "\n";
       }
       IRB.CreateCall(printMetadata, {base,bound});
-      IRB.CreateCall(boundCheck, {bound, access});
+      IRB.CreateCall(boundCheck, {base, bound, access});
     };
 
     void handle_bitcast(Instruction &I)
@@ -360,7 +360,7 @@ namespace
           "bound_check",
           FunctionType::get(
               Type::getVoidTy(M.getContext()),                                          // 반환 타입: void
-              {Type::getInt8PtrTy(M.getContext()), Type::getInt8PtrTy(M.getContext())}, // 인자: (void* ptr, void* ptr)
+              {Type::getInt8PtrTy(M.getContext()), Type::getInt8PtrTy(M.getContext()),Type::getInt8PtrTy(M.getContext())}, // 인자: (void* ptr, void* ptr)
               false                                                                     // 가변 인자 여부: false
               ));
 

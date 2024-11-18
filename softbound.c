@@ -8,6 +8,14 @@
 #include <sys/mman.h>
 #include <bits/mman-linux.h>
 
+
+#define RED "\033[1;31m"
+#define YELLOW "\033[1;33m"
+#define GREEN "\033[1;32m"
+#define BLUE "\033[1;34m"
+#define RESET "\033[0m"
+#define BYTES_PER_LINE 8
+
 /*
 주소의 희소성을 메모리 효율적 처리를 위해 2중 trie구조로 변경
 2중 배열(primary table: 루트, secondary table: 동적 할당)
@@ -31,6 +39,54 @@ typedef struct
 // Metadata metadata_table[HASH_TABLE_SIZE];
 // Metadata *metadata_table = NULL;
 Metadata **primary_table = NULL;
+
+void print_memory_dump(void *access, void *base, void *bound)
+{
+    unsigned char *start = (unsigned char *)base;
+    unsigned char *end = (unsigned char *)bound;
+    unsigned char *access_addr = (unsigned char *)access;
+
+    printf("==================================================================\n");
+
+    for (unsigned char *current_addr = (unsigned char *)((uintptr_t)start & ~0xF);
+         current_addr < end + 0x100;
+         current_addr += 0x10)
+    {
+        printf("%p: ", current_addr);
+
+        // 16바이트 데이터 출력
+        for (int i = 0; i < 16; i++)
+        {
+            unsigned char *byte_addr = current_addr + i;
+
+            if (byte_addr >= start && byte_addr < end) // 범위 내
+            {
+                printf(GREEN "%02x " RESET, *byte_addr);
+            }
+            else // 범위 외
+            {
+                printf(BLUE "%02x " RESET, *byte_addr);
+            }
+        }
+
+        // `access` 주소에 맞게 `^` 위치 계산
+        if (current_addr <= access_addr && access_addr < current_addr + 0x10)
+        {
+            int offset = access_addr - current_addr; // `access`의 위치 계산
+            printf("\n%*s" RED "^" RESET "\n", 16 + (offset * 3), ""); // 동적 위치 계산
+        }
+        else
+        {
+            printf("\n");
+        }
+    }
+
+    printf("==================================================================\n");
+}
+
+
+
+
 
 size_t get_primary_index(void *ptr)
 {
@@ -123,11 +179,12 @@ void print_metadata_table()
   }
 }
 
-void bound_check(void *bound, void *access)
+void bound_check(void * base, void *bound, void *access)
 {
   if(bound < access){
     printf("***out-of-bound detected***\n");
     printf("accessing : %p, bound is : %p\n" ,access, bound);
+    print_memory_dump(access, base, bound);
     return;
   }
 }

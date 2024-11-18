@@ -8,8 +8,8 @@ define dso_local i32 @main() #0 !dbg !10 {
   %1 = alloca [10 x i32], align 16
   %2 = alloca i32*, align 8
   call void @llvm.dbg.declare(metadata [10 x i32]* %1, metadata !15, metadata !DIExpression()), !dbg !19
-  %3 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 10, !dbg !20
-  store i32 1, i32* %3, align 8, !dbg !21
+  %3 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 33, !dbg !20
+  store i32 1, i32* %3, align 4, !dbg !21
   call void @llvm.dbg.declare(metadata i32** %2, metadata !22, metadata !DIExpression()), !dbg !24
   %4 = call i8* @malloc(i64 noundef 16), !dbg !25
   %5 = bitcast i8* %4 to i32*, !dbg !25
@@ -34,7 +34,7 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !llvm.ident = !{!9}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "Ubuntu clang version 14.0.0-1ubuntu1.1", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "bb9dd16095446f5e9e4e6c64556eb7f8")
+!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "73bf426d4f0ef1f432f279315214a62e")
 !2 = !{i32 7, !"Dwarf Version", i32 5}
 !3 = !{i32 2, !"Debug Info Version", i32 3}
 !4 = !{i32 1, !"wchar_size", i32 4}

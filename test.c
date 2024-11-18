@@ -7,7 +7,7 @@
 
 int main(){
 	int arr[10];
-	arr[10] = 1;
+	arr[33] = 1;
 	int *arr2 = malloc(0x10);
 	arr2[4] = 1;
 
