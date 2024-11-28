@@ -6,9 +6,9 @@ void func(int *arr){
 }
 
 int main(){
-	char arr[10];
-	// void *arr_copy = arr;
-	// *((int *)arr_copy + 10) = 1;
+	int arr[10];
+	void *arr_copy = arr;
+	*((int *)arr_copy + 10) = 1;
 
 	func(arr);
 }
