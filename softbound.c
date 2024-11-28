@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <sys/mman.h>
 #include <bits/mman-linux.h>
+<<<<<<< HEAD
+=======
 
 
 #define RED "\033[1;31m"
@@ -28,6 +30,7 @@ secondary table: primary table내 세부 위치 구분
 #define SECONDARY_TABLE_SIZE (1 << 20)
 static const size_t __SOFTBOUNDCETS_TRIE_SECONDARY_TABLE_ENTRIES =
     ((size_t)4 * (size_t)1024 * (size_t)1024);
+>>>>>>> simple-detect
 
 
 typedef struct
@@ -37,8 +40,12 @@ typedef struct
 } Metadata;
 
 // Metadata metadata_table[HASH_TABLE_SIZE];
+<<<<<<< HEAD
+Metadata *metadata_table = NULL;
+=======
 // Metadata *metadata_table = NULL;
 Metadata **primary_table = NULL;
+>>>>>>> simple-detect
 
 void print_memory_dump(void *access, void *base, void *bound)
 {
@@ -277,4 +284,7 @@ void initialize_metadata_table()
     metadata_table[i].bound = NULL;
   }
 }
+<<<<<<< HEAD
+=======
 */
+>>>>>>> simple-detect

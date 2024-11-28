@@ -1,6 +1,0 @@
-/home/test/metadata-temp/build/CMakeFiles/intrinsics_gen.dir
-/home/test/metadata-temp/build/CMakeFiles/omp_gen.dir
-/home/test/metadata-temp/build/CMakeFiles/acc_gen.dir
-/home/test/metadata-temp/build/CMakeFiles/SoftBoundPass.dir
-/home/test/metadata-temp/build/CMakeFiles/edit_cache.dir
-/home/test/metadata-temp/build/CMakeFiles/rebuild_cache.dir
