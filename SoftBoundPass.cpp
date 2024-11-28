@@ -193,6 +193,10 @@ namespace
       }
       base = getAssociatedBase(src);
       bound = getAssociatedBound(src);
+      if(!base || !bound){
+        errs() << "metadata not exist allocating temporal data\n";
+
+      }
       if (isa<PointerType>(type))
       {
         builder.CreateCall(setMetaData, {access, base, bound});
@@ -411,7 +415,7 @@ namespace
           for (Instruction &I : BB)
           {
             IRBuilder<> IRB(&I);
-            errs() << "handling instruction : " << &I << "\n";
+            errs() << "handling instruction : " << I << "\n";
             switch (I.getOpcode())
             {
             case Instruction::Alloca:
