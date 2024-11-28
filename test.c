@@ -1,16 +1,16 @@
 #include <stdio.h>
 
-/*void func(int n){
-	int arr[n];
-	arr[0x200] = 1;
-}*/
+// void func(int *arr){
+// 	void *test = arr;
+// 	*((int *)test +12) = 0xff;
+// }
 
 int main(){
 	int arr[10];
-	arr[33] = 1;
-	int *arr2 = malloc(0x10);
-	arr2[4] = 1;
+	void *arr_copy = arr;
+	*((int *)arr_copy + 10) = 1;
 
+	// func(arr);
 }
 /*
 	void *ptr = &arr;

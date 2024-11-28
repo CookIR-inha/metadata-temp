@@ -48,7 +48,7 @@ namespace
     {
       if (!MValueBaseMap.count(pointer_operand))
       {
-        errs() << "no element\n";
+        errs() << "getAssociatedBase: No base found for " << *pointer_operand << "\n";
         return 0;
       }
       return MValueBaseMap[pointer_operand];
@@ -181,15 +181,18 @@ namespace
       Value *src = SI->getOperand(0);
       Value *dst = SI->getOperand(1);
       Type *type = src->getType();
-      Value *base = getAssociatedBase(dst);
-      Value *bound = getAssociatedBound(dst);
+      Value *base = NULL;
+      Value *bound = NULL;
       Value *access = castToVoidPtr(dst, builder);
       if (!isTypeWithPointers(src->getType()))
       {
+        base = getAssociatedBase(dst);
+        bound = getAssociatedBound(dst);
         builder.CreateCall(boundCheck,{base, bound, access});
         return;
       }
-      
+      base = getAssociatedBase(src);
+      bound = getAssociatedBound(src);
       if (isa<PointerType>(type))
       {
         builder.CreateCall(setMetaData, {access, base, bound});
@@ -346,14 +349,6 @@ namespace
               {Type::getInt8PtrTy(M.getContext()), Type::getInt8PtrTy(M.getContext())}, // 인자: (void* base, void* bound)
               false                                                                     // 가변 인자 여부: false
               ));
-      // get_metadata 함수 선언 또는 삽입
-      getMetaData = M.getOrInsertFunction(
-          "get_metadata",
-          FunctionType::get(
-              Type::getInt1Ty(M.getContext()),      // 반환 타입: bool (int1)
-              {Type::getInt8PtrTy(M.getContext())}, // 인자: (void* ptr)
-              false                                 // 가변 인자 여부: false
-              ));
 
       // bound_check 함수 선언 또는 삽입
       boundCheck = M.getOrInsertFunction(
@@ -416,6 +411,7 @@ namespace
           for (Instruction &I : BB)
           {
             IRBuilder<> IRB(&I);
+            errs() << "handling instruction : " << &I << "\n";
             switch (I.getOpcode())
             {
             case Instruction::Alloca:

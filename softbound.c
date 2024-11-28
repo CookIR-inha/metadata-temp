@@ -133,20 +133,6 @@ void set_metadata(void *ptr, void *base, void *bound)
   return;
 }
 
-bool get_metadata(void *ptr)
-{
-  size_t primary_index = get_primary_index(ptr);
-  size_t secondary_index = get_secondary_index(ptr);
-
-  if (!primary_table[primary_index])
-  {
-    return false; // 2차 테이블이 할당되지 않은 경우
-  }
-
-  Metadata metadata = primary_table[primary_index][secondary_index];
-  return (metadata.base != NULL && metadata.bound != NULL);
-}
-
 void *get_base_addr(void *access){
   size_t primary_index = get_primary_index(access);
   size_t secondary_index = get_secondary_index(access);
@@ -181,7 +167,7 @@ void print_metadata_table()
 
 void bound_check(void * base, void *bound, void *access)
 {
-  if(bound < access){
+  if(bound <= access){
     printf("***out-of-bound detected***\n");
     printf("accessing : %p, bound is : %p\n" ,access, bound);
     print_memory_dump(access, base, bound);
