@@ -7,8 +7,6 @@
 #include <stdbool.h>
 #include <sys/mman.h>
 #include <bits/mman-linux.h>
-<<<<<<< HEAD
-=======
 
 
 #define RED "\033[1;31m"
@@ -30,7 +28,6 @@ secondary table: primary table내 세부 위치 구분
 #define SECONDARY_TABLE_SIZE (1 << 20)
 static const size_t __SOFTBOUNDCETS_TRIE_SECONDARY_TABLE_ENTRIES =
     ((size_t)4 * (size_t)1024 * (size_t)1024);
->>>>>>> simple-detect
 
 
 typedef struct
@@ -40,12 +37,8 @@ typedef struct
 } Metadata;
 
 // Metadata metadata_table[HASH_TABLE_SIZE];
-<<<<<<< HEAD
-Metadata *metadata_table = NULL;
-=======
 // Metadata *metadata_table = NULL;
 Metadata **primary_table = NULL;
->>>>>>> simple-detect
 
 void print_memory_dump(void *access, void *base, void *bound)
 {
@@ -140,20 +133,6 @@ void set_metadata(void *ptr, void *base, void *bound)
   return;
 }
 
-bool get_metadata(void *ptr)
-{
-  size_t primary_index = get_primary_index(ptr);
-  size_t secondary_index = get_secondary_index(ptr);
-
-  if (!primary_table[primary_index])
-  {
-    return false; // 2차 테이블이 할당되지 않은 경우
-  }
-
-  Metadata metadata = primary_table[primary_index][secondary_index];
-  return (metadata.base != NULL && metadata.bound != NULL);
-}
-
 void *get_base_addr(void *access){
   size_t primary_index = get_primary_index(access);
   size_t secondary_index = get_secondary_index(access);
@@ -188,7 +167,7 @@ void print_metadata_table()
 
 void bound_check(void * base, void *bound, void *access)
 {
-  if(bound < access){
+  if(bound <= access){
     printf("***out-of-bound detected***\n");
     printf("accessing : %p, bound is : %p\n" ,access, bound);
     print_memory_dump(access, base, bound);
@@ -298,7 +277,4 @@ void initialize_metadata_table()
     metadata_table[i].bound = NULL;
   }
 }
-<<<<<<< HEAD
-=======
 */
->>>>>>> simple-detect
