@@ -33,6 +33,10 @@ namespace
 
     LLVMContext *C;
     const DataLayout *DL;
+    Type *MSizetTy;
+    Constant *MInfiniteBoundPtr;
+
+    ConstantPointerNull *MVoidNullPtr;
     PointerType *MVoidPtrTy;
     FunctionCallee setMetaData;
     FunctionCallee printMetadata;
@@ -44,12 +48,18 @@ namespace
     FunctionCallee initTable;
 
     // For constants containing multiple pointers use getAssociatedBaseArray.
+    
     Value *getAssociatedBase(Value *pointer_operand)
     {
       if (!MValueBaseMap.count(pointer_operand))
       {
-        errs() << "getAssociatedBase: No base found for " << *pointer_operand << "\n";
-        return 0;
+        if(auto *Const = dyn_cast<Constant>(pointer_operand)){
+          errs() << "***Constant***\n";
+        }
+        else{
+          // Implement here.
+          MValueBaseMap[pointer_operand] = MVoidNullPtr;
+        }
       }
       return MValueBaseMap[pointer_operand];
     }
@@ -59,8 +69,13 @@ namespace
       // TODO: 구조체 내부 out-of-bound 탐지 구현
       if (MValueBoundMap.find(pointer_operand) == MValueBoundMap.end())
       {
-        errs() << "getAssociatedBound: No bound found for " << *pointer_operand << "\n";
-        return nullptr;
+        if(auto *Const = dyn_cast<Constant>(pointer_operand)){
+          errs() << "***Constant***\n";
+        }
+        else{
+          // Implement here.
+          MValueBoundMap[pointer_operand] = MInfiniteBoundPtr;
+        }
       }
       return MValueBoundMap[pointer_operand];
     }
@@ -271,7 +286,7 @@ namespace
       IRBuilder<> IRB(BCI->getNextNode());
 
       // 원본 포인터의 메타데이터 가져오기
-      errs() << "assoc in bitcast : " << *SrcPtr << "\n";
+      // errs() << "assoc in bitcast : " << *SrcPtr << "\n";
       Value *Base = getAssociatedBase(SrcPtr);
       Value *Bound = getAssociatedBound(SrcPtr);
 
@@ -283,6 +298,40 @@ namespace
 
       // 새로운 포인터에 메타데이터 연관
       associateBaseBound(DstPtr, Base, Bound);
+    }
+
+    void handle_call(Instruction &I){
+      CallInst *CI = dyn_cast<CallInst>(&I);
+      if(!CI->getCalledFunction()->getName().equals("func")) return;
+      errs() << CI->arg_size() << "\n";
+      for (unsigned idx = 0; idx < CI->arg_size(); ++idx) {
+        Value *arg = CI->getArgOperand(idx);
+
+        // Retrieve existing metadata for the argument
+        Value *base = getAssociatedBase(arg);
+        Value *bound = getAssociatedBound(arg);
+
+        errs() << "Argument: " << *arg << "\n";
+        errs() << "Base is :" << base << " " << *base << " "<< &base <<"\n";
+
+        // Check if the Base or Bound is Dummy Metadata
+        if (base == MVoidNullPtr || bound == MInfiniteBoundPtr) {
+            errs() << "Dummy Metadata detected for argument: " << *arg << "\n";
+
+            // Find the corresponding function argument in the callee
+            Function *calledFunction = CI->getCalledFunction();
+            if (!calledFunction)
+                continue;
+
+            Argument *calleeArg = calledFunction->arg_begin() + idx;
+
+            // Update the metadata for the callee's argument
+            associateBaseBound(calleeArg, base, bound);
+            errs() << "Updated metadata for callee argument: " << *calleeArg << "\n";
+        }
+    }
+
+      
     }
 
     static void appendToGlobalArray(const char *Array, Module &M, Function *F,
@@ -337,6 +386,12 @@ namespace
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
     {
       MVoidPtrTy = PointerType::getInt8PtrTy(M.getContext());
+      MVoidNullPtr = ConstantPointerNull::get(MVoidPtrTy);
+      size_t InfBound;
+      MSizetTy = Type::getInt64Ty(M.getContext());
+      
+      Constant *InfiniteBound = ConstantInt::get(MSizetTy, InfBound, false);
+      MInfiniteBoundPtr = ConstantExpr::getIntToPtr(InfiniteBound, MVoidPtrTy);
       DL = &M.getDataLayout();
       C = &M.getContext();
       setMetaData = M.getOrInsertFunction(
@@ -415,7 +470,7 @@ namespace
           for (Instruction &I : BB)
           {
             IRBuilder<> IRB(&I);
-            errs() << "handling instruction : " << I << "\n";
+            // errs() << "handling instruction : " << I << "\n";
             switch (I.getOpcode())
             {
             case Instruction::Alloca:
@@ -440,6 +495,10 @@ namespace
             }
             case Instruction::BitCast:
               handle_bitcast(I);
+              break;
+            case Instruction::Call:
+              handle_call(I);
+              break;
             }
           }
         }
