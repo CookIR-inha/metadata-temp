@@ -48,16 +48,19 @@ namespace
     FunctionCallee initTable;
 
     // For constants containing multiple pointers use getAssociatedBaseArray.
-    
+
     Value *getAssociatedBase(Value *pointer_operand)
     {
       if (!MValueBaseMap.count(pointer_operand))
       {
-        if(auto *Const = dyn_cast<Constant>(pointer_operand)){
+        if (auto *Const = dyn_cast<Constant>(pointer_operand))
+        {
           errs() << "***Constant***\n";
         }
-        else{
+        else
+        {
           // Implement here.
+          errs() << "allocating mvoidnullptr to : " << *pointer_operand << " address is : " << pointer_operand << "\n";
           MValueBaseMap[pointer_operand] = MVoidNullPtr;
         }
       }
@@ -69,11 +72,15 @@ namespace
       // TODO: 구조체 내부 out-of-bound 탐지 구현
       if (MValueBoundMap.find(pointer_operand) == MValueBoundMap.end())
       {
-        if(auto *Const = dyn_cast<Constant>(pointer_operand)){
+        if (auto *Const = dyn_cast<Constant>(pointer_operand))
+        {
           errs() << "***Constant***\n";
         }
-        else{
+        else
+        {
           // Implement here.
+          errs() << "allocating minfiniteboundptr to : " << *pointer_operand << " address is : " << pointer_operand << "\n";
+
           MValueBoundMap[pointer_operand] = MInfiniteBoundPtr;
         }
       }
@@ -162,6 +169,77 @@ namespace
 
       return IRB.CreateBitCast(Ptr, MVoidPtrTy, Ptr->getName() + ".voidptr");
     }
+    size_t countPointersInType(Type *Ty)
+    {
+      switch (Ty->getTypeID())
+      {
+      case Type::PointerTyID:
+        return 1;
+      case Type::StructTyID:
+      {
+        size_t Sum = 0;
+        for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end();
+             I != E; ++I)
+        {
+          Sum += countPointersInType(*I);
+        }
+        return Sum;
+      }
+      case Type::ArrayTyID:
+      {
+        ArrayType *ArrayTy = cast<ArrayType>(Ty);
+        return countPointersInType(ArrayTy->getElementType()) *
+               ArrayTy->getNumElements();
+      }
+      case Type::FixedVectorTyID:
+      {
+        FixedVectorType *FVTy = cast<FixedVectorType>(Ty);
+        return countPointersInType(FVTy->getElementType()) * FVTy->getNumElements();
+      }
+      // TODO[orthen]: enable this too with ElementCount, isScalar, getValue
+      case Type::ScalableVectorTyID:
+      {
+        assert(0 && "Counting pointers for scalable vectors not yet handled.");
+      }
+      default:
+        return 0;
+      }
+    }
+    size_t introduceShadowStackStores(Value *Val, Instruction *InsertAt, int ArgNo)
+    {
+      size_t NumPtrs = countPointersInType(Val->getType());
+      if (NumPtrs == 0)
+        return 0;
+
+      SmallVector<Value *, 8> Args, UnpackedBases, UnpackedBounds, UnpackedKeys,
+          UnpackedLocks;
+      unsigned MetadataSize = 0;
+      IRBuilder<> IRB(InsertAt);
+
+      /** (ds)
+       * Push metadata of each contained pointer on the shadow stack linearly.
+       */
+
+      auto AssociatedBases = getAssociatedBases(Val);
+      auto AssociatedBounds = getAssociatedBounds(Val);
+      UnpackedBases = unpackMetadataArray(AssociatedBases, InsertAt);
+      UnpackedBounds = unpackMetadataArray(AssociatedBounds, InsertAt);
+      MetadataSize = UnpackedBases.size();
+
+      for (unsigned Idx = 0; Idx < MetadataSize; ++Idx)
+      {
+        Args.clear();
+        Value *BaseCast = castToVoidPtr(UnpackedBases[Idx], InsertAt);
+        Args.push_back(BaseCast);
+        Value *BoundCast = castToVoidPtr(UnpackedBounds[Idx], InsertAt);
+        Args.push_back(BoundCast);
+
+        Args.push_back(ConstantInt::get(MArgNoTy, ArgNo + Idx, false));
+        IRB.CreateCall(StoreMetadataShadowStackFn, Args);
+      }
+
+      return NumPtrs;
+    }
 
     void handle_alloca(Instruction &I)
     {
@@ -203,19 +281,18 @@ namespace
       {
         base = getAssociatedBase(dst);
         bound = getAssociatedBound(dst);
-        builder.CreateCall(boundCheck,{base, bound, access});
+        // builder.CreateCall(boundCheck, {base, bound, access});
         return;
       }
       base = getAssociatedBase(src);
       bound = getAssociatedBound(src);
-      if(!base || !bound){
+      if (!base || !bound)
+      {
         errs() << "metadata not exist allocating temporal data\n";
-
       }
       if (isa<PointerType>(type))
       {
         builder.CreateCall(setMetaData, {access, base, bound});
-        
       }
 
       // vector의 경우 아직 고려하지 않음
@@ -261,18 +338,19 @@ namespace
       {
         if (!MValueBaseMap.count(LI) && !MValueBoundMap.count(LI))
         {
-          
+
           Value *loadsrc = castToVoidPtr(pointer_operand, IRB);
           data.Base = IRB.CreateCall(getBaseAddr, {loadsrc});
           data.Bound = IRB.CreateCall(getBoundAddr, {loadsrc});
           associateBaseBound(LI, data.Base, data.Bound);
         }
       }
-      if(!base || !bound){
+      if (!base || !bound)
+      {
         errs() << *LI << "\n";
       }
-      IRB.CreateCall(printMetadata, {base,bound});
-      IRB.CreateCall(boundCheck, {base, bound, access});
+      IRB.CreateCall(printMetadata, {base, bound});
+      // IRB.CreateCall(boundCheck, {base, bound, access});
     };
 
     void handle_bitcast(Instruction &I)
@@ -300,38 +378,41 @@ namespace
       associateBaseBound(DstPtr, Base, Bound);
     }
 
-    void handle_call(Instruction &I){
+    void handle_call(Instruction &I)
+    {
       CallInst *CI = dyn_cast<CallInst>(&I);
-      if(!CI->getCalledFunction()->getName().equals("func")) return;
+      if (!CI->getCalledFunction()->getName().equals("func"))
+        return;
       errs() << CI->arg_size() << "\n";
-      for (unsigned idx = 0; idx < CI->arg_size(); ++idx) {
+      for (unsigned idx = 0; idx < CI->arg_size(); ++idx)
+      {
         Value *arg = CI->getArgOperand(idx);
+        errs() << "Argument's address is " << arg << "\n";
 
         // Retrieve existing metadata for the argument
         Value *base = getAssociatedBase(arg);
         Value *bound = getAssociatedBound(arg);
 
         errs() << "Argument: " << *arg << "\n";
-        errs() << "Base is :" << base << " " << *base << " "<< &base <<"\n";
+        errs() << "Base is :" << base << " " << *base << " " << &base << "\n";
 
         // Check if the Base or Bound is Dummy Metadata
-        if (base == MVoidNullPtr || bound == MInfiniteBoundPtr) {
-            errs() << "Dummy Metadata detected for argument: " << *arg << "\n";
+        if (base == MVoidNullPtr || bound == MInfiniteBoundPtr)
+        {
+          errs() << "Dummy Metadata detected for argument: " << *arg << "\n";
 
-            // Find the corresponding function argument in the callee
-            Function *calledFunction = CI->getCalledFunction();
-            if (!calledFunction)
-                continue;
+          // Find the corresponding function argument in the callee
+          Function *calledFunction = CI->getCalledFunction();
+          if (!calledFunction)
+            continue;
 
-            Argument *calleeArg = calledFunction->arg_begin() + idx;
+          Argument *calleeArg = calledFunction->arg_begin() + idx;
 
-            // Update the metadata for the callee's argument
-            associateBaseBound(calleeArg, base, bound);
-            errs() << "Updated metadata for callee argument: " << *calleeArg << "\n";
+          // Update the metadata for the callee's argument
+          associateBaseBound(calleeArg, base, bound);
+          errs() << "Updated metadata for callee argument: " << *calleeArg << "\n";
         }
-    }
-
-      
+      }
     }
 
     static void appendToGlobalArray(const char *Array, Module &M, Function *F,
@@ -383,13 +464,98 @@ namespace
       appendToGlobalArray("llvm.global_ctors", M, F, Priority, Data);
     }
 
+    void collect_metadata(Function &F)
+    {
+      for (BasicBlock &BB : F)
+      {
+        for (Instruction &I : BB)
+        {
+          IRBuilder<> IRB(&I);
+          errs() << "handling instruction : " << I << "\n";
+          switch (I.getOpcode())
+          {
+          case Instruction::Alloca:
+          {
+            handle_alloca(I);
+            break;
+          }
+          case Instruction::GetElementPtr:
+          {
+            handle_GEP(I);
+            break;
+          }
+          case Instruction::Load:
+          {
+            handle_load(I);
+            break;
+          }
+          case Instruction::Store:
+          {
+            handle_store(I);
+            break;
+          }
+          case Instruction::BitCast:
+            handle_bitcast(I);
+            break;
+          case Instruction::Call:
+            handle_call(I);
+            break;
+          }
+        }
+      }
+    }
+
+    void insert_func(Function &F)
+    {
+
+      Value *value_operand = NULL;
+      Value *pointer_opeand = NULL;
+      Type *pointee_type = NULL;
+      Value *access = NULL;
+      IRBuilder<> *builder = NULL;
+      for (BasicBlock &BB : F)
+      {
+        for (Instruction &I : BB)
+        {
+          SmallVector<Value *, 8> args;
+          if (StoreInst *SI = dyn_cast<StoreInst>(&I))
+          {
+            value_operand = SI->getValueOperand();
+            pointer_opeand = SI->getPointerOperand();
+            pointee_type = SI->getType();
+            builder = new IRBuilder<>(SI->getNextNode());
+            access = castToVoidPtr(pointer_opeand, *builder);
+            if (!isTypeWithPointers(value_operand->getType()))
+            {
+              args.push_back(getAssociatedBase(pointer_opeand));
+              args.push_back(getAssociatedBound(pointer_opeand));
+              args.push_back(access);
+              builder->CreateCall(boundCheck, args);
+            }
+          }
+          if (LoadInst *LI = dyn_cast<LoadInst>(&I))
+          {
+            pointer_opeand = LI->getPointerOperand();
+            pointee_type = LI->getType();
+            builder = new IRBuilder<>(LI->getNextNode());
+            access = castToVoidPtr(pointer_opeand, *builder);
+
+            args.push_back(getAssociatedBase(pointer_opeand));
+            args.push_back(getAssociatedBound(pointer_opeand));
+            args.push_back(access);
+            builder->CreateCall(boundCheck, args);
+          }
+        }
+      }
+    }
+
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
     {
       MVoidPtrTy = PointerType::getInt8PtrTy(M.getContext());
       MVoidNullPtr = ConstantPointerNull::get(MVoidPtrTy);
       size_t InfBound;
       MSizetTy = Type::getInt64Ty(M.getContext());
-      
+
       Constant *InfiniteBound = ConstantInt::get(MSizetTy, InfBound, false);
       MInfiniteBoundPtr = ConstantExpr::getIntToPtr(InfiniteBound, MVoidPtrTy);
       DL = &M.getDataLayout();
@@ -413,9 +579,9 @@ namespace
       boundCheck = M.getOrInsertFunction(
           "bound_check",
           FunctionType::get(
-              Type::getVoidTy(M.getContext()),                                          // 반환 타입: void
-              {Type::getInt8PtrTy(M.getContext()), Type::getInt8PtrTy(M.getContext()),Type::getInt8PtrTy(M.getContext())}, // 인자: (void* ptr, void* ptr)
-              false                                                                     // 가변 인자 여부: false
+              Type::getVoidTy(M.getContext()),                                                                              // 반환 타입: void
+              {Type::getInt8PtrTy(M.getContext()), Type::getInt8PtrTy(M.getContext()), Type::getInt8PtrTy(M.getContext())}, // 인자: (void* ptr, void* ptr)
+              false                                                                                                         // 가변 인자 여부: false
               ));
 
       // print_metadata_table 함수 선언 또는 삽입
@@ -465,43 +631,8 @@ namespace
       appendToGlobalCtors(M, CtorFunc, 0, nullptr);
       for (Function &F : M)
       {
-        for (BasicBlock &BB : F)
-        {
-          for (Instruction &I : BB)
-          {
-            IRBuilder<> IRB(&I);
-            // errs() << "handling instruction : " << I << "\n";
-            switch (I.getOpcode())
-            {
-            case Instruction::Alloca:
-            {
-              handle_alloca(I);
-              break;
-            }
-            case Instruction::GetElementPtr:
-            {
-              handle_GEP(I);
-              break;
-            }
-            case Instruction::Load:
-            {
-              handle_load(I);
-              break;
-            }
-            case Instruction::Store:
-            {
-              handle_store(I);
-              break;
-            }
-            case Instruction::BitCast:
-              handle_bitcast(I);
-              break;
-            case Instruction::Call:
-              handle_call(I);
-              break;
-            }
-          }
-        }
+        collect_metadata(F);
+        insert_func(F);
       }
       return PreservedAnalyses::none();
     };

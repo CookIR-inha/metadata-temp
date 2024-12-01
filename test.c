@@ -7,8 +7,8 @@ void func(int *arr){
 
 int main(){
 	int arr[10];
-	void *arr_copy = arr;
-	*((int *)arr_copy + 10) = 1;
+	// void *arr_copy = arr;
+	// *((int *)arr_copy + 10) = 1;
 
 	func(arr);
 }

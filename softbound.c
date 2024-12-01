@@ -28,6 +28,8 @@ secondary table: primary table내 세부 위치 구분
 #define SECONDARY_TABLE_SIZE (1 << 20)
 static const size_t __SOFTBOUNDCETS_TRIE_SECONDARY_TABLE_ENTRIES =
     ((size_t)4 * (size_t)1024 * (size_t)1024);
+static const size_t __SOFTBOUNDCETS_SHADOW_STACK_ENTRIES =
+((size_t)128 * (size_t)32);
 
 
 typedef struct
@@ -39,6 +41,7 @@ typedef struct
 // Metadata metadata_table[HASH_TABLE_SIZE];
 // Metadata *metadata_table = NULL;
 Metadata **primary_table = NULL;
+size_t *__softboundcets_shadow_stack_ptr = NULL;
 
 void print_memory_dump(void *access, void *base, void *bound)
 {
@@ -189,10 +192,40 @@ void initialize_metadata_table()
     primary_table[i] = NULL; // 초기화 시 2차 테이블은 NULL로 설정
   }
   printf("Primary table initialization done\n");
+  size_t shadow_stack_size =
+      __SOFTBOUNDCETS_SHADOW_STACK_ENTRIES * sizeof(size_t);
+  __softboundcets_shadow_stack_ptr =
+      (size_t *)mmap(0, shadow_stack_size,
+       PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  assert(__softboundcets_shadow_stack_ptr != (void *)-1);
+
+  *((size_t *)__softboundcets_shadow_stack_ptr) = 0; /* prev stack size */
+  size_t *current_size_shadow_stack_ptr = __softboundcets_shadow_stack_ptr + 1;
+  *(current_size_shadow_stack_ptr) = 0;
 }
 void print_metadata(void *base, void *bound){
   printf("base address: %p\n", base);
   printf("bound address: %p\n", bound);
+}
+
+void *__softboundcets_load_base_shadow_stack(size_t arg_no) {
+  assert(arg_no >= 0);
+  size_t count =
+      2 + arg_no * 2 + 0; // number of field: 2, base index : 0
+  size_t *base_ptr = (__softboundcets_shadow_stack_ptr + count);
+  void *base = *((void **)base_ptr);
+  return base;
+}
+
+void *__softboundcets_load_bound_shadow_stack(size_t arg_no) {
+
+  assert(arg_no >= 0);
+  size_t count =
+      2 + arg_no * 2 + 1; // number of field: 2, bound index : 1
+  size_t *bound_ptr = (__softboundcets_shadow_stack_ptr + count);
+
+  void *bound = *((void **)bound_ptr);
+  return bound;
 }
 
 /*
