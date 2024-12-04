@@ -34,7 +34,7 @@ define dso_local i32 @main() #0 !dbg !28 {
   store i8* %4, i8** %2, align 8, !dbg !37
   %5 = load i8*, i8** %2, align 8, !dbg !39
   %6 = bitcast i8* %5 to i32*, !dbg !40
-  %7 = getelementptr inbounds i32, i32* %6, i64 10, !dbg !41
+  %7 = getelementptr inbounds i32, i32* %6, i64 11, !dbg !41
   store i32 1, i32* %7, align 4, !dbg !42
   %8 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 0, !dbg !43
   call void @func(i32* noundef %8), !dbg !44
@@ -49,7 +49,7 @@ attributes #1 = { nofree nosync nounwind readnone speculatable willreturn }
 !llvm.ident = !{!12}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "Ubuntu clang version 14.0.0-1ubuntu1.1", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !2, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "9ef7ad4db87967ba90acc51673265150")
+!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "cb5aeb822bf897fd46e1742c89f9dfa7")
 !2 = !{!3}
 !3 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !4, size: 64)
 !4 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)

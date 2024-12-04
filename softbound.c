@@ -8,14 +8,13 @@
 #include <sys/mman.h>
 #include <bits/mman-linux.h>
 
-
 #define RED "\033[1;31m"
 #define YELLOW "\033[1;33m"
 #define GREEN "\033[1;32m"
 #define BLUE "\033[1;34m"
 #define RESET "\033[0m"
 #define BYTES_PER_LINE 8
-
+#include <assert.h>
 /*
 주소의 희소성을 메모리 효율적 처리를 위해 2중 trie구조로 변경
 2중 배열(primary table: 루트, secondary table: 동적 할당)
@@ -29,8 +28,7 @@ secondary table: primary table내 세부 위치 구분
 static const size_t __SOFTBOUNDCETS_TRIE_SECONDARY_TABLE_ENTRIES =
     ((size_t)4 * (size_t)1024 * (size_t)1024);
 static const size_t __SOFTBOUNDCETS_SHADOW_STACK_ENTRIES =
-((size_t)128 * (size_t)32);
-
+    ((size_t)128 * (size_t)32);
 
 typedef struct
 {
@@ -45,51 +43,47 @@ size_t *__softboundcets_shadow_stack_ptr = NULL;
 
 void print_memory_dump(void *access, void *base, void *bound)
 {
-    unsigned char *start = (unsigned char *)base;
-    unsigned char *end = (unsigned char *)bound;
-    unsigned char *access_addr = (unsigned char *)access;
+  unsigned char *start = (unsigned char *)base;
+  unsigned char *end = (unsigned char *)bound;
+  unsigned char *access_addr = (unsigned char *)access;
 
-    printf("==================================================================\n");
+  printf("==================================================================\n");
 
-    for (unsigned char *current_addr = (unsigned char *)((uintptr_t)start & ~0xF);
-         current_addr < end + 0x100;
-         current_addr += 0x10)
+  for (unsigned char *current_addr = (unsigned char *)((uintptr_t)start & ~0xF);
+       current_addr < end + 0x100;
+       current_addr += 0x10)
+  {
+    printf("%p: ", current_addr);
+
+    // 16바이트 데이터 출력
+    for (int i = 0; i < 16; i++)
     {
-        printf("%p: ", current_addr);
+      unsigned char *byte_addr = current_addr + i;
 
-        // 16바이트 데이터 출력
-        for (int i = 0; i < 16; i++)
-        {
-            unsigned char *byte_addr = current_addr + i;
-
-            if (byte_addr >= start && byte_addr < end) // 범위 내
-            {
-                printf(GREEN "%02x " RESET, *byte_addr);
-            }
-            else // 범위 외
-            {
-                printf(BLUE "%02x " RESET, *byte_addr);
-            }
-        }
-
-        // `access` 주소에 맞게 `^` 위치 계산
-        if (current_addr <= access_addr && access_addr < current_addr + 0x10)
-        {
-            int offset = access_addr - current_addr; // `access`의 위치 계산
-            printf("\n%*s" RED "^" RESET "\n", 16 + (offset * 3), ""); // 동적 위치 계산
-        }
-        else
-        {
-            printf("\n");
-        }
+      if (byte_addr >= start && byte_addr < end) // 범위 내
+      {
+        printf(GREEN "%02x " RESET, *byte_addr);
+      }
+      else // 범위 외
+      {
+        printf(BLUE "%02x " RESET, *byte_addr);
+      }
     }
 
-    printf("==================================================================\n");
+    // `access` 주소에 맞게 `^` 위치 계산
+    if (current_addr <= access_addr && access_addr < current_addr + 0x10)
+    {
+      int offset = access_addr - current_addr;                   // `access`의 위치 계산
+      printf("\n%*s" RED "^" RESET "\n", 16 + (offset * 3), ""); // 동적 위치 계산
+    }
+    else
+    {
+      printf("\n");
+    }
+  }
+
+  printf("==================================================================\n");
 }
-
-
-
-
 
 size_t get_primary_index(void *ptr)
 {
@@ -101,29 +95,45 @@ size_t get_secondary_index(void *ptr)
   return ((uintptr_t)ptr >> 4) & (SECONDARY_TABLE_SIZE - 1); // 하위 20비트 사용
 }
 
-void _init_metadata_table(){
+void _init_metadata_table()
+{
   printf("initializing table\n");
   primary_table = (Metadata **)mmap(NULL, sizeof(Metadata) * PRIMARY_TABLE_SIZE,
-                                      PROT_READ | PROT_WRITE,
-                                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if(primary_table == MAP_FAILED){
+                                    PROT_READ | PROT_WRITE,
+                                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (primary_table == MAP_FAILED)
+  {
     printf("error table\n");
   }
+  printf("Primary table initialization done\n");
+  size_t shadow_stack_size =
+      __SOFTBOUNDCETS_SHADOW_STACK_ENTRIES * sizeof(size_t);
+  __softboundcets_shadow_stack_ptr =
+      (size_t *)mmap(0, shadow_stack_size,
+                     PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+
+  assert(__softboundcets_shadow_stack_ptr != (void *)-1);
+  printf("shadow_stack_address : %p", __softboundcets_shadow_stack_ptr);
+  *((size_t *)__softboundcets_shadow_stack_ptr) = 0; /* prev stack size */
+  size_t *current_size_shadow_stack_ptr = __softboundcets_shadow_stack_ptr + 1;
+  *(current_size_shadow_stack_ptr) = 0;
 }
 
-void *__softboundcets_trie_allocate(){
+void *__softboundcets_trie_allocate()
+{
   Metadata *secondary_entry;
   size_t length = (__SOFTBOUNDCETS_TRIE_SECONDARY_TABLE_ENTRIES) * sizeof(Metadata);
-  secondary_entry = (Metadata *)mmap(0,length,PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  secondary_entry = (Metadata *)mmap(0, length, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   return secondary_entry;
 }
 
-void set_metadata(void *ptr, void *base, void *bound)
+void _softboundcets_set_metadata(void *ptr, void *base, void *bound)
 {
   size_t primary_index = get_primary_index(ptr);
   size_t secondary_index = get_secondary_index(ptr);
   Metadata *secondary_table = primary_table[primary_index];
-  if(secondary_table == NULL){
+  if (secondary_table == NULL)
+  {
     secondary_table = __softboundcets_trie_allocate();
     primary_table[primary_index] = secondary_table;
   }
@@ -136,20 +146,22 @@ void set_metadata(void *ptr, void *base, void *bound)
   return;
 }
 
-void *get_base_addr(void *access){
+void *__softboundcets_get_base_addr(void *access)
+{
   size_t primary_index = get_primary_index(access);
   size_t secondary_index = get_secondary_index(access);
-  void* base = primary_table[primary_index][secondary_index].base;
+  void *base = primary_table[primary_index][secondary_index].base;
   return base;
 }
-void *get_bound_addr(void *access){
+void *__softboundcets_get_bound_addr(void *access)
+{
   size_t primary_index = get_primary_index(access);
   size_t secondary_index = get_secondary_index(access);
-  void* bound = primary_table[primary_index][secondary_index].bound;
+  void *bound = primary_table[primary_index][secondary_index].bound;
   return bound;
 }
 
-void print_metadata_table()
+void _softboundcets_print_metadata_table()
 {
   printf("Printing non-empty entries in metadata table:\n");
   for (size_t i = 0; i < PRIMARY_TABLE_SIZE; i++)
@@ -168,47 +180,61 @@ void print_metadata_table()
   }
 }
 
-void bound_check(void * base, void *bound, void *access)
+void _softboundcets_bound_check(void *base, void *bound, void *access)
 {
-  if(bound <= access){
+  if (bound <= access)
+  {
     printf("***out-of-bound detected***\n");
-    printf("accessing : %p, bound is : %p\n" ,access, bound);
+    printf("accessing : %p, bound is : %p\n", access, bound);
     print_memory_dump(access, base, bound);
     return;
   }
 }
-
-void initialize_metadata_table()
+void _softboundcets_print_metadata(void *base, void *bound)
 {
-  primary_table = mmap(NULL, sizeof(Metadata *) * PRIMARY_TABLE_SIZE,
-                       PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (primary_table == MAP_FAILED)
-  {
-    perror("mmap failed");
-    exit(1);
-  }
-  for (size_t i = 0; i < PRIMARY_TABLE_SIZE; i++)
-  {
-    primary_table[i] = NULL; // 초기화 시 2차 테이블은 NULL로 설정
-  }
-  printf("Primary table initialization done\n");
-  size_t shadow_stack_size =
-      __SOFTBOUNDCETS_SHADOW_STACK_ENTRIES * sizeof(size_t);
-  __softboundcets_shadow_stack_ptr =
-      (size_t *)mmap(0, shadow_stack_size,
-       PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  assert(__softboundcets_shadow_stack_ptr != (void *)-1);
-
-  *((size_t *)__softboundcets_shadow_stack_ptr) = 0; /* prev stack size */
-  size_t *current_size_shadow_stack_ptr = __softboundcets_shadow_stack_ptr + 1;
-  *(current_size_shadow_stack_ptr) = 0;
-}
-void print_metadata(void *base, void *bound){
   printf("base address: %p\n", base);
   printf("bound address: %p\n", bound);
 }
 
-void *__softboundcets_load_base_shadow_stack(size_t arg_no) {
+Metadata *__softboundcets_shadow_stack_metadata_ptr(size_t arg_no)
+{
+  assert(arg_no >= 0);
+  size_t count = 2 + arg_no * 2;
+  size_t *metadata_ptr = (__softboundcets_shadow_stack_ptr + count);
+  return (Metadata *)metadata_ptr;
+}
+void __softboundcets_allocate_shadow_stack_space(size_t num_pointer_args)
+{
+  size_t *prev_stack_size_ptr = __softboundcets_shadow_stack_ptr + 1;
+  size_t prev_stack_size = *((size_t *)prev_stack_size_ptr);
+
+  __softboundcets_shadow_stack_ptr =
+      __softboundcets_shadow_stack_ptr + prev_stack_size + 2;
+
+  *((size_t *)__softboundcets_shadow_stack_ptr) = prev_stack_size;
+  size_t *current_stack_size_ptr = __softboundcets_shadow_stack_ptr + 1;
+
+  ssize_t size = num_pointer_args * 2;
+  *((size_t *)current_stack_size_ptr) = size;
+}
+void __softboundcets_deallocate_shadow_stack_space(void)
+{
+  size_t *reserved_space_ptr = __softboundcets_shadow_stack_ptr;
+
+  size_t read_value = *((size_t *)reserved_space_ptr);
+  __softboundcets_shadow_stack_ptr =
+      __softboundcets_shadow_stack_ptr - read_value - 2;
+}
+
+void __softboundcets_store_metadata_shadow_stack(void *base, void *bound, size_t arg_no)
+{
+  Metadata *metadata = __softboundcets_shadow_stack_metadata_ptr(arg_no);
+  metadata->base = base;
+  metadata->bound = bound;
+}
+
+void *__softboundcets_load_base_shadow_stack(size_t arg_no)
+{
   assert(arg_no >= 0);
   size_t count =
       2 + arg_no * 2 + 0; // number of field: 2, base index : 0
@@ -217,7 +243,8 @@ void *__softboundcets_load_base_shadow_stack(size_t arg_no) {
   return base;
 }
 
-void *__softboundcets_load_bound_shadow_stack(size_t arg_no) {
+void *__softboundcets_load_bound_shadow_stack(size_t arg_no)
+{
 
   assert(arg_no >= 0);
   size_t count =
@@ -227,87 +254,3 @@ void *__softboundcets_load_bound_shadow_stack(size_t arg_no) {
   void *bound = *((void **)bound_ptr);
   return bound;
 }
-
-/*
-size_t hash(void *ptr)
-{
-  return ((uintptr_t)ptr >> 4) % HASH_TABLE_SIZE;
-}
-
-// 메타데이터 설정 함수
-void set_metadata(void *ptr, size_t size)
-{
-  size_t index = hash(ptr);
-  metadata_table[index].base = ptr;
-  metadata_table[index].bound = (char *)ptr + size;
-  printf("Stored Malloc Info - base: %p, bound: %p\n", metadata_table[index].base, metadata_table[index].bound);
-}
-
-bool get_metadata(void *ptr)
-{
-  size_t index = hash(ptr);
-  Metadata metadata = metadata_table[index];
-
-  return (metadata.base != NULL && metadata.bound != NULL);
-}
-
-void print_metadata_table()
-{
-  printf("Printing non-empty entries in metadata table:\n");
-  for (size_t i = 0; i < HASH_TABLE_SIZE; i++)
-  {
-    if (metadata_table[i].base != NULL || metadata_table[i].bound != NULL)
-    {
-      printf("Index %zu -> Base: %p, Bound: %p\n", i, metadata_table[i].base, metadata_table[i].bound);
-    }
-  }
-}
-
-void bound_check(void *ptr, void *access, const char *inst)
-{
-  size_t index = hash(ptr);
-  Metadata metadata = metadata_table[index];
-
-  // 경계 정보가 제대로 설정되어 있는지 확인
-  if (metadata.base == NULL || metadata.bound == NULL)
-  {
-    printf("Error: Metadata not found for pointer %p\n", ptr);
-    return;
-  }
-
-  printf("Memory access at %p for pointer %p[%s]\n", access, ptr, inst);
-  printf("Bound info - Base: %p, Bound: %p\n", metadata.base, metadata.bound);
-
-  // 접근 주소가 base 이상이고, bound보다 작은지 확인
-  if (access >= metadata.base && access < metadata.bound)
-  {
-    printf("Access within bounds.\n");
-  }
-  else
-  {
-    printf("*** Out-of-bound access detected ***\n");
-  }
-}
-
-void initialize_metadata_table()
-{
-  size_t mmap_size = sizeof(Metadata) * HASH_TABLE_SIZE;
-
-  metadata_table = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (metadata_table == MAP_FAILED)
-  {
-    perror("mmap failed");
-    exit(1);
-  }
-  else
-  {
-    printf("mmap done\n");
-  }
-
-  for (size_t i = 0; i < HASH_TABLE_SIZE; i++)
-  {
-    metadata_table[i].base = NULL;
-    metadata_table[i].bound = NULL;
-  }
-}
-*/

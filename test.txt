@@ -1,0 +1,5 @@
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/test/metadata-temp/build
+Consolidate compiler generated dependencies of target SoftBoundPass
+[100%] Built target SoftBoundPass
