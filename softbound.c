@@ -92,7 +92,7 @@ size_t get_primary_index(void *ptr)
 
 size_t get_secondary_index(void *ptr)
 {
-  return ((uintptr_t)ptr >> 4) & (SECONDARY_TABLE_SIZE - 1); // 하위 20비트 사용
+  return ((size_t)ptr >> 3) & 0x3fffff; 
 }
 
 void _init_metadata_table()
@@ -202,6 +202,20 @@ Metadata *__softboundcets_shadow_stack_metadata_ptr(size_t arg_no)
   size_t count = 2 + arg_no * 2;
   size_t *metadata_ptr = (__softboundcets_shadow_stack_ptr + count);
   return (Metadata *)metadata_ptr;
+}
+
+Metadata *__softboundcets_shadowspace_metadata_ptr(void *address) {
+
+  size_t ptr = (size_t)address;
+  Metadata *trie_secondary_table;
+  size_t primary_index = (ptr >> 25);
+  trie_secondary_table = primary_table[primary_index];
+
+  size_t secondary_index = ((ptr >> 3) & 0x3fffff);
+  Metadata *entry_ptr =
+      &trie_secondary_table[secondary_index];
+
+  return entry_ptr;
 }
 void __softboundcets_allocate_shadow_stack_space(size_t num_pointer_args)
 {

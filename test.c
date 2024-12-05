@@ -2,13 +2,13 @@
 
 void func(int *arr){
 	void *test = arr;
-	*((int *)test +12) = 0xff;
+	*((int *)test +10) = 0xff;
 }
 
 int main(){
 	int arr[10];
-	void *arr_copy = arr;
-	*((int *)arr_copy + 11) = 1;
+	// void *arr_copy = arr;
+	// *((int *)arr_copy + 11) = 1;
 
 	func(arr);
 }

@@ -61,6 +61,7 @@ namespace
     FunctionCallee StoreMetadataShadowStackFn;
     FunctionCallee AllocateShadowStackFn;
     FunctionCallee LoadMetadataPtrShadowStackFn;
+    FunctionCallee LoadMetadataPtrFn;
     FunctionCallee DeallocateShadowStackFn;
     // For constants containing multiple pointers use getAssociatedBaseArray.
     // NOTE: summary for constants
@@ -905,6 +906,7 @@ namespace
       // Bound 주소 계산: GEP 명령어로 base 주소에 Idx를 더해 bound 주소 계산
       Value *boundGEP = builder.CreateGEP(AI->getAllocatedType(), AI, Idx, "mtmp");
       Value *bound = castToVoidPtr(boundGEP, builder); // Bound를 void*로 캐스팅
+
       associateBaseBound(AI, base, bound);
     };
 
@@ -966,33 +968,27 @@ namespace
       LoadInst *LI = dyn_cast<LoadInst>(&I);
       Type *LoadTy = LI->getType();
       Metadata data;
-
       int typeID = LoadTy->getTypeID();
 
-      Value *pointer_operand = LI->getPointerOperand();
-      Value *base = getAssociatedBase(pointer_operand);
-      Value *bound = getAssociatedBound(pointer_operand);
+      Value *LoadSrc = LI->getPointerOperand();
       Instruction *new_inst = getNextInstruction(LI);
-      IRBuilder<> IRB(new_inst);
-      Value *access = castToVoidPtr(pointer_operand, IRB);
+      IRBuilder<> IRB(LI);
+      Value *LoadSrcBitcast = castToVoidPtr(LoadSrc, IRB);
 
       if (isa<PointerType>(LoadTy))
       {
         if (!MValueBaseMap.count(LI) && !MValueBoundMap.count(LI))
         {
-
-          Value *loadsrc = castToVoidPtr(pointer_operand, IRB);
-          data.Base = IRB.CreateCall(getBaseAddr, {loadsrc});
-          data.Bound = IRB.CreateCall(getBoundAddr, {loadsrc});
+          errs() << "Working\n";
+          auto *MetadataPtr = IRB.CreateCall(LoadMetadataPtrFn, {LoadSrcBitcast});
+          auto *BasePtr = IRB.CreateStructGEP(MetadataPtr->getType()->getPointerElementType(), MetadataPtr, 0, "baseptr");
+          data.Base = IRB.CreateLoad(BasePtr->getType()->getPointerElementType(), BasePtr, "base");
+          auto *BoundPtr = IRB.CreateStructGEP(MetadataPtr->getType()->getPointerElementType(), MetadataPtr, 1, "boundptr");
+          data.Bound = IRB.CreateLoad(BoundPtr->getType()->getPointerElementType(), BoundPtr, "base");
           associateBaseBound(LI, data.Base, data.Bound);
         }
       }
-      if (!base || !bound)
-      {
-        errs() << *LI << "\n";
-      }
-      IRB.CreateCall(printMetadata, {base, bound});
-      // IRB.CreateCall(boundCheck, {base, bound, access});
+
     };
 
     void handle_bitcast(Instruction &I)
@@ -1385,6 +1381,7 @@ namespace
       {
         for (Instruction &I : BB)
         {
+          errs() << "instruction : " << I << "\n";
           SmallVector<Value *, 8> args;
           if (StoreInst *SI = dyn_cast<StoreInst>(&I))
           {
@@ -1402,6 +1399,8 @@ namespace
               {
                 errs() << "argument of boundcheck : " << *arg << "\n";
               }
+              errs() << "inserting boundcheck\n";
+
               builder->CreateCall(boundCheck, args);
             }
           }
@@ -1415,6 +1414,7 @@ namespace
             args.push_back(getAssociatedBase(pointer_opeand));
             args.push_back(getAssociatedBound(pointer_opeand));
             args.push_back(access);
+            errs() << "inserting boundcheck\n";
             builder->CreateCall(boundCheck, args);
           }
         }
@@ -1509,6 +1509,8 @@ namespace
       LoadMetadataPtrShadowStackFn =
           M.getOrInsertFunction("__softboundcets_shadow_stack_metadata_ptr",
                                 MetadataStructPtrTy, MSizetTy);
+      LoadMetadataPtrFn = M.getOrInsertFunction(
+          "__softboundcets_shadowspace_metadata_ptr", MetadataStructPtrTy, MVoidPtrTy);
 
       FunctionCallee initTable = M.getOrInsertFunction(
           "_init_metadata_table",
