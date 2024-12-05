@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -shared -Wl,-soname,libsoftbound.so -o libsoftbound.so CMakeFiles/softbound.dir/softbound.c.o 

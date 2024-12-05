@@ -85,6 +85,51 @@ rebuild_cache:
 rebuild_cache/fast: rebuild_cache
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+.PHONY : list_install_components/fast
+
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
+
+# Special rule for the target install/strip
+install/strip: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
+	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip
+
+# Special rule for the target install/strip
+install/strip/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
+	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip/fast
+
 # The main all target
 all: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles /home/test/metadata-temp/build//CMakeFiles/progress.marks
@@ -168,6 +213,58 @@ SoftBoundPass/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/SoftBoundPass.dir/build.make CMakeFiles/SoftBoundPass.dir/build
 .PHONY : SoftBoundPass/fast
 
+#=============================================================================
+# Target rules for targets named GenerateIR
+
+# Build rule for target.
+GenerateIR: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 GenerateIR
+.PHONY : GenerateIR
+
+# fast build rule for target.
+GenerateIR/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/GenerateIR.dir/build.make CMakeFiles/GenerateIR.dir/build
+.PHONY : GenerateIR/fast
+
+#=============================================================================
+# Target rules for targets named softbound
+
+# Build rule for target.
+softbound: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 softbound
+.PHONY : softbound
+
+# fast build rule for target.
+softbound/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound.dir/build.make CMakeFiles/softbound.dir/build
+.PHONY : softbound/fast
+
+#=============================================================================
+# Target rules for targets named softbound-wrapper
+
+# Build rule for target.
+softbound-wrapper: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 softbound-wrapper
+.PHONY : softbound-wrapper
+
+# fast build rule for target.
+softbound-wrapper/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound-wrapper.dir/build.make CMakeFiles/softbound-wrapper.dir/build
+.PHONY : softbound-wrapper/fast
+
+#=============================================================================
+# Target rules for targets named output_binary
+
+# Build rule for target.
+output_binary: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 output_binary
+.PHONY : output_binary
+
+# fast build rule for target.
+output_binary/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/output_binary.dir/build.make CMakeFiles/output_binary.dir/build
+.PHONY : output_binary/fast
+
 SoftBoundPass.o: SoftBoundPass.cpp.o
 .PHONY : SoftBoundPass.o
 
@@ -192,6 +289,54 @@ SoftBoundPass.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/SoftBoundPass.dir/build.make CMakeFiles/SoftBoundPass.dir/SoftBoundPass.cpp.s
 .PHONY : SoftBoundPass.cpp.s
 
+softbound-wrapper.o: softbound-wrapper.c.o
+.PHONY : softbound-wrapper.o
+
+# target to build an object file
+softbound-wrapper.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound-wrapper.dir/build.make CMakeFiles/softbound-wrapper.dir/softbound-wrapper.c.o
+.PHONY : softbound-wrapper.c.o
+
+softbound-wrapper.i: softbound-wrapper.c.i
+.PHONY : softbound-wrapper.i
+
+# target to preprocess a source file
+softbound-wrapper.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound-wrapper.dir/build.make CMakeFiles/softbound-wrapper.dir/softbound-wrapper.c.i
+.PHONY : softbound-wrapper.c.i
+
+softbound-wrapper.s: softbound-wrapper.c.s
+.PHONY : softbound-wrapper.s
+
+# target to generate assembly for a file
+softbound-wrapper.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound-wrapper.dir/build.make CMakeFiles/softbound-wrapper.dir/softbound-wrapper.c.s
+.PHONY : softbound-wrapper.c.s
+
+softbound.o: softbound.c.o
+.PHONY : softbound.o
+
+# target to build an object file
+softbound.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound.dir/build.make CMakeFiles/softbound.dir/softbound.c.o
+.PHONY : softbound.c.o
+
+softbound.i: softbound.c.i
+.PHONY : softbound.i
+
+# target to preprocess a source file
+softbound.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound.dir/build.make CMakeFiles/softbound.dir/softbound.c.i
+.PHONY : softbound.c.i
+
+softbound.s: softbound.c.s
+.PHONY : softbound.s
+
+# target to generate assembly for a file
+softbound.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound.dir/build.make CMakeFiles/softbound.dir/softbound.c.s
+.PHONY : softbound.c.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -199,14 +344,28 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
+	@echo "... install"
+	@echo "... install/local"
+	@echo "... install/strip"
+	@echo "... list_install_components"
 	@echo "... rebuild_cache"
+	@echo "... GenerateIR"
 	@echo "... acc_gen"
 	@echo "... intrinsics_gen"
 	@echo "... omp_gen"
+	@echo "... output_binary"
 	@echo "... SoftBoundPass"
+	@echo "... softbound"
+	@echo "... softbound-wrapper"
 	@echo "... SoftBoundPass.o"
 	@echo "... SoftBoundPass.i"
 	@echo "... SoftBoundPass.s"
+	@echo "... softbound-wrapper.o"
+	@echo "... softbound-wrapper.i"
+	@echo "... softbound-wrapper.s"
+	@echo "... softbound.o"
+	@echo "... softbound.i"
+	@echo "... softbound.s"
 .PHONY : help
 
 

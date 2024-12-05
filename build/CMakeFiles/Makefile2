@@ -64,6 +64,10 @@ CMAKE_BINARY_DIR = /home/test/metadata-temp/build
 
 # The main recursive "all" target.
 all: CMakeFiles/SoftBoundPass.dir/all
+all: CMakeFiles/GenerateIR.dir/all
+all: CMakeFiles/softbound.dir/all
+all: CMakeFiles/softbound-wrapper.dir/all
+all: CMakeFiles/output_binary.dir/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
@@ -75,6 +79,10 @@ clean: CMakeFiles/intrinsics_gen.dir/clean
 clean: CMakeFiles/omp_gen.dir/clean
 clean: CMakeFiles/acc_gen.dir/clean
 clean: CMakeFiles/SoftBoundPass.dir/clean
+clean: CMakeFiles/GenerateIR.dir/clean
+clean: CMakeFiles/softbound.dir/clean
+clean: CMakeFiles/softbound-wrapper.dir/clean
+clean: CMakeFiles/output_binary.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -162,7 +170,7 @@ CMakeFiles/acc_gen.dir/clean:
 CMakeFiles/SoftBoundPass.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/SoftBoundPass.dir/build.make CMakeFiles/SoftBoundPass.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/SoftBoundPass.dir/build.make CMakeFiles/SoftBoundPass.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/test/metadata-temp/build/CMakeFiles --progress-num=1,2 "Built target SoftBoundPass"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/test/metadata-temp/build/CMakeFiles --progress-num=3,4 "Built target SoftBoundPass"
 .PHONY : CMakeFiles/SoftBoundPass.dir/all
 
 # Build rule for subdir invocation for target.
@@ -180,6 +188,111 @@ SoftBoundPass: CMakeFiles/SoftBoundPass.dir/rule
 CMakeFiles/SoftBoundPass.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/SoftBoundPass.dir/build.make CMakeFiles/SoftBoundPass.dir/clean
 .PHONY : CMakeFiles/SoftBoundPass.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/GenerateIR.dir
+
+# All Build rule for target.
+CMakeFiles/GenerateIR.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/GenerateIR.dir/build.make CMakeFiles/GenerateIR.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/GenerateIR.dir/build.make CMakeFiles/GenerateIR.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/test/metadata-temp/build/CMakeFiles --progress-num=1,2 "Built target GenerateIR"
+.PHONY : CMakeFiles/GenerateIR.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/GenerateIR.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/GenerateIR.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles 0
+.PHONY : CMakeFiles/GenerateIR.dir/rule
+
+# Convenience name for target.
+GenerateIR: CMakeFiles/GenerateIR.dir/rule
+.PHONY : GenerateIR
+
+# clean rule for target.
+CMakeFiles/GenerateIR.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/GenerateIR.dir/build.make CMakeFiles/GenerateIR.dir/clean
+.PHONY : CMakeFiles/GenerateIR.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/softbound.dir
+
+# All Build rule for target.
+CMakeFiles/softbound.dir/all: CMakeFiles/GenerateIR.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound.dir/build.make CMakeFiles/softbound.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound.dir/build.make CMakeFiles/softbound.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/test/metadata-temp/build/CMakeFiles --progress-num=8,9 "Built target softbound"
+.PHONY : CMakeFiles/softbound.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/softbound.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles 4
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/softbound.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles 0
+.PHONY : CMakeFiles/softbound.dir/rule
+
+# Convenience name for target.
+softbound: CMakeFiles/softbound.dir/rule
+.PHONY : softbound
+
+# clean rule for target.
+CMakeFiles/softbound.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound.dir/build.make CMakeFiles/softbound.dir/clean
+.PHONY : CMakeFiles/softbound.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/softbound-wrapper.dir
+
+# All Build rule for target.
+CMakeFiles/softbound-wrapper.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound-wrapper.dir/build.make CMakeFiles/softbound-wrapper.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound-wrapper.dir/build.make CMakeFiles/softbound-wrapper.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/test/metadata-temp/build/CMakeFiles --progress-num=10,11 "Built target softbound-wrapper"
+.PHONY : CMakeFiles/softbound-wrapper.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/softbound-wrapper.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/softbound-wrapper.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles 0
+.PHONY : CMakeFiles/softbound-wrapper.dir/rule
+
+# Convenience name for target.
+softbound-wrapper: CMakeFiles/softbound-wrapper.dir/rule
+.PHONY : softbound-wrapper
+
+# clean rule for target.
+CMakeFiles/softbound-wrapper.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/softbound-wrapper.dir/build.make CMakeFiles/softbound-wrapper.dir/clean
+.PHONY : CMakeFiles/softbound-wrapper.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/output_binary.dir
+
+# All Build rule for target.
+CMakeFiles/output_binary.dir/all: CMakeFiles/softbound.dir/all
+CMakeFiles/output_binary.dir/all: CMakeFiles/softbound-wrapper.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/output_binary.dir/build.make CMakeFiles/output_binary.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/output_binary.dir/build.make CMakeFiles/output_binary.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/test/metadata-temp/build/CMakeFiles --progress-num=5,6,7 "Built target output_binary"
+.PHONY : CMakeFiles/output_binary.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/output_binary.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles 9
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/output_binary.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/test/metadata-temp/build/CMakeFiles 0
+.PHONY : CMakeFiles/output_binary.dir/rule
+
+# Convenience name for target.
+output_binary: CMakeFiles/output_binary.dir/rule
+.PHONY : output_binary
+
+# clean rule for target.
+CMakeFiles/output_binary.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/output_binary.dir/build.make CMakeFiles/output_binary.dir/clean
+.PHONY : CMakeFiles/output_binary.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

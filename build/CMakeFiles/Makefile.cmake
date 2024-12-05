@@ -63,4 +63,8 @@ set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/omp_gen.dir/DependInfo.cmake"
   "CMakeFiles/acc_gen.dir/DependInfo.cmake"
   "CMakeFiles/SoftBoundPass.dir/DependInfo.cmake"
+  "CMakeFiles/GenerateIR.dir/DependInfo.cmake"
+  "CMakeFiles/softbound.dir/DependInfo.cmake"
+  "CMakeFiles/softbound-wrapper.dir/DependInfo.cmake"
+  "CMakeFiles/output_binary.dir/DependInfo.cmake"
   )

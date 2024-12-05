@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -shared -Wl,-soname,libsoftbound-wrapper.so -o libsoftbound-wrapper.so CMakeFiles/softbound-wrapper.dir/softbound-wrapper.c.o 

@@ -1,6 +1,8 @@
 // SoftBoundPass.cpp
+
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Constants.h"
@@ -9,6 +11,8 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Support/Debug.h"
+
 #include "llvm/Support/Debug.h"
 #include <map>
 #include <cstddef>
@@ -38,6 +42,8 @@ namespace
     } __softbound_metadata;
     std::map<Value *, TinyPtrVector<Value *>> MValueBaseMap;
     std::map<Value *, TinyPtrVector<Value *>> MValueBoundMap;
+    StringMap<bool> m_func_transformed;
+    SmallSet<Function *, 32> InstrumentedFunctions;
 
     LLVMContext *C;
     const DataLayout *DL;
@@ -63,6 +69,354 @@ namespace
     FunctionCallee LoadMetadataPtrShadowStackFn;
     FunctionCallee LoadMetadataPtrFn;
     FunctionCallee DeallocateShadowStackFn;
+
+    StringMap<bool> MFunctionWrappersAvailable = {
+        {"system", true},
+        {"setreuid", true},
+        {"mkstemp", true},
+        {"getrlimit", true},
+        {"setrlimit", true},
+        {"fread", true},
+        {"mkdir", true},
+        {"chroot", true},
+        {"rmdir", true},
+        {"stat", true},
+        {"fputc", true},
+        {"fileno", true},
+        {"fgetc", true},
+        {"strncmp", true},
+        {"fwrite", true},
+        {"atof", true},
+        {"feof", true},
+        {"remove", true},
+        {"tmpfile", true},
+        {"ferror", true},
+        {"ftell", true},
+        {"fstat", true},
+        {"fflush", true},
+        {"fputs", true},
+        {"fopen", true},
+        {"fdopen", true},
+        {"fseek", true},
+        {"ftruncate", true},
+        {"popen", true},
+        {"fclose", true},
+        {"pclose", true},
+        {"rewind", true},
+        {"readdir", true},
+        {"opendir", true},
+        {"closedir", true},
+        {"rename", true},
+        {"getcwd", true},
+        {"chown", true},
+        {"chdir", true},
+        {"strcmp", true},
+        {"strcasecmp", true},
+        {"strncasecmp", true},
+        {"strlen", true},
+        {"strpbrk", true},
+        {"gets", true},
+        {"fgets", true},
+        {"perror", true},
+        {"strspn", true},
+        {"strcspn", true},
+        {"memcmp", true},
+        {"memchr", true},
+        {"rindex", true},
+        {"strtoul", true},
+        {"strtod", true},
+        {"strtol", true},
+        {"strchr", true},
+        {"strrchr", true},
+        {"strcpy", true},
+        {"atoi", true},
+        {"strtok", true},
+        {"strdup", true},
+        {"strcat", true},
+        {"strncat", true},
+        {"strncpy", true},
+        {"strstr", true},
+        {"signal", true},
+        {"atol", true},
+        {"realloc", true},
+        {"calloc", true},
+        {"malloc", true},
+        {"mmap", true},
+
+        {"times", true},
+        {"strftime", true},
+        {"localtime", true},
+        {"time", true},
+        {"free", true},
+        {"ctime", true},
+        {"setbuf", true},
+        {"getenv", true},
+        {"atexit", true},
+        {"strerror", true},
+        {"unlink", true},
+        // TODO[orthen]: fix wrapper to check for arguments as functions with same
+        // name can have different declarations
+        // {"open", true},
+        {"read", true},
+        {"write", true},
+        {"gettimeofday", true},
+        {"select", true},
+        {"__errno_location", true},
+        {"__ctype_b_loc", true},
+        {"__ctype_toupper_loc", true},
+        {"__ctype_tolower_loc", true},
+        {"qsort", true},
+        {"puts", true},
+        {"setlocale", true},
+        // string.h wrappers
+        {"__mempcpy", true},
+        {"__stpcpy", true},
+        {"__stpncpy", true},
+        {"basename", true},
+        {"explicit_bzero", true},
+        {"memccpy", true},
+        {"memfrob", true},
+        {"memmem", true},
+        {"memmove", true},
+        {"memset", true},
+        {"rawmemchr", true},
+        {"stpncpy", true},
+        {"strcasestr", true},
+        {"strcoll", true},
+        {"strcoll_l", true},
+        {"strerror_l", true},
+        {"strfry", true},
+        {"strnlen", true},
+        {"strsep", true},
+        {"strsignal", true},
+        {"strtok_r", true},
+        {"strverscmp", true},
+        {"strxfrm", true},
+        {"strxfrm_l", true},
+        // strings.h wrappers
+        {"bcmp", true},
+        {"bcopy", true},
+        {"bzero", true},
+        {"index", true},
+        {"strcasecmp_l", true},
+        {"strncasecmp_l", true},
+        // stdio.h wrappers
+        {"__asprintf", true},
+        {"__overflow", true},
+        {"__uflow", true},
+        {"asprintf", true},
+        {"clearerr", true},
+        {"clearerr_unlocked", true},
+        {"ctermid", true},
+        {"cuserid", true},
+        {"dprintf", true},
+        {"feof_unlocked", true},
+        {"ferror_unlocked", true},
+        {"fflush_unlocked", true},
+        {"fgetc_unlocked", true},
+        {"fgetpos", true},
+        {"fgetpos64", true},
+        {"fgets_unlocked", true},
+        {"fileno_unlocked", true},
+        {"flockfile", true},
+        {"fmemopen", true},
+        {"fopen64", true},
+        {"fopencookie", true},
+        {"fprintf", true},
+        {"fputc_unlocked", true},
+        {"fputs_unlocked", true},
+        {"freopen", true},
+        {"freopen64", true},
+        {"fscanf", true},
+        {"fseeko64", true},
+        {"fsetpos", true},
+        {"fsetpos64", true},
+        {"ftello", true},
+        {"ftello64", true},
+        {"ftrylockfile", true},
+        {"funlockfile", true},
+        {"fwrite_unlocked", true},
+        {"getc", true},
+        {"getc_unlocked", true},
+        {"getdelim", true},
+        {"getline", true},
+        {"getw", true},
+        {"obstack_printf", true},
+        {"obstack_vprintf", true},
+        {"open_memstream", true},
+        {"printf", true},
+        {"putc", true},
+        {"putc_unlocked", true},
+        {"putw", true},
+        {"renameat2", true},
+        {"scanf", true},
+        {"setbuffer", true},
+        {"setlinebuf", true},
+        {"setvbuf", true},
+        {"snprintf", true},
+        {"sprintf", true},
+        {"sscanf", true},
+        {"tempnam", true},
+        {"tmpfile64", true},
+        {"tmpnam", true},
+        {"tmpnam_r", true},
+        {"vasprintf", true},
+        {"vdprintf", true},
+        {"vfprintf", true},
+        {"vfscanf", true},
+        {"vprintf", true},
+        {"vscanf", true},
+        {"vsnprintf", true},
+        {"vsprintf", true},
+        {"vsscanf", true},
+        {"wcscpy", true},
+        // Wrappers for unistd.h
+        {"access", true},
+        {"brk", true},
+        {"confstr", true},
+        {"copy_file_range", true},
+        // {"crypt", true}, TODO: The wrapper did not compile
+        {"eaccess", true},
+        {"euidaccess", true},
+        // {"execl", true},
+        // {"execle", true},
+        // {"execlp", true},
+        {"execv", true},
+        {"execve", true},
+        {"execveat", true},
+        {"execvp", true},
+        {"execvpe", true},
+        {"faccessat", true},
+        {"fexecve", true},
+        {"get_current_dir_name", true},
+        {"getdomainname", true},
+        {"getgroups", true},
+        {"gethostname", true},
+        {"getlogin", true},
+        {"getlogin_r", true},
+        {"getpass", true},
+        {"getresgid", true},
+        {"getresuid", true},
+        {"getusershell", true},
+        {"getwd", true},
+        {"lchown", true},
+        {"link", true},
+        {"pipe", true},
+        {"pipe2", true},
+        {"pread", true},
+        {"pread64", true},
+        {"profil", true},
+        {"pwrite", true},
+        {"pwrite64", true},
+        {"readlink", true},
+        {"revoke", true},
+        {"sbrk", true},
+        {"setdomainname", true},
+        {"sethostname", true},
+        {"setlogin", true},
+        {"swab", true},
+        {"symlink", true},
+        {"truncate", true},
+        {"truncate64", true},
+        {"ttyname", true},
+        {"ttyname_r", true},
+        {"acct", true},
+        {"getentropy", true},
+        // stdlib.h
+        {"a64l", true},
+        {"aligned_alloc", true},
+        {"at_quick_exit", true},
+        {"atoll", true},
+        {"canonicalize_file_name", true},
+        {"drand48_r", true},
+        {"ecvt", true},
+        {"ecvt_r", true},
+        {"erand48", true},
+        {"erand48_r", true},
+        {"fcvt", true},
+        {"fcvt_r", true},
+        {"gcvt", true},
+        {"getloadavg", true},
+        {"getsubopt", true},
+        {"initstate", true},
+        {"initstate_r", true},
+        {"jrand48", true},
+        {"jrand48_r", true},
+        {"l64a", true},
+        {"lcong48", true},
+        {"lcong48_r", true},
+        {"lrand48_r", true},
+        {"mblen", true},
+        {"mbstowcs", true},
+        {"mbtowc", true},
+        {"mkostemp64", true},
+        {"mkostemps", true},
+        {"mkostemps64", true},
+        {"mkstemps", true},
+        {"mkstemps64", true},
+        {"mktemp", true},
+        {"mrand48_r", true},
+        {"nrand48", true},
+        {"nrand48_r", true},
+        {"on_exit", true},
+        {"posix_memalign", true},
+        {"ptsname", true},
+        {"ptsname_r", true},
+        {"putenv", true},
+        {"qecvt", true},
+        {"qecvt_r", true},
+        {"qfcvt", true},
+        {"qfcvt_r", true},
+        {"qgcvt", true},
+        {"qsort_r", true},
+        {"rand_r", true},
+        {"random_r", true},
+        {"realpath", true},
+        {"secure_getenv", true},
+        {"seed48", true},
+        {"seed48_r", true},
+        {"setstate", true},
+        {"setstate_r", true},
+        {"srand48_r", true},
+        {"srandom_r", true},
+        {"strfromd", true},
+        {"strfromf", true},
+        {"strfromf32", true},
+        {"strfromf32x", true},
+        {"strfromf64", true},
+        {"strfromf64x", true},
+        {"strfroml", true},
+        {"strtod_l", true},
+        {"strtof", true},
+        {"strtof32", true},
+        {"strtof32_l", true},
+        {"strtof32x", true},
+        {"strtof32x_l", true},
+        {"strtof64", true},
+        {"strtof64_l", true},
+        {"strtof64x", true},
+        {"strtof64x_l", true},
+        {"strtof_l", true},
+        {"strtol_l", true},
+        {"strtold", true},
+        {"strtold_l", true},
+        {"strtoll", true},
+        {"strtoll_l", true},
+        {"strtoq", true},
+        {"strtoul_l", true},
+        {"strtoull", true},
+        {"strtoull_l", true},
+        {"strtouq", true},
+        {"wcstombs", true},
+        {"wctomb", true},
+        {"reallocarray", true},
+        // malloc.h
+        {"malloc_info", true},
+        {"malloc_usable_size", true},
+        {"memalign", true},
+        {"pvalloc", true},
+        {"valloc", true},
+    };
     // For constants containing multiple pointers use getAssociatedBaseArray.
     // NOTE: summary for constants
     // just like getConstantExprBaseBound recursively
@@ -988,7 +1342,6 @@ namespace
           associateBaseBound(LI, data.Base, data.Bound);
         }
       }
-
     };
 
     void handle_bitcast(Instruction &I)
@@ -1207,6 +1560,16 @@ namespace
       if (auto *F = CI->getCalledFunction())
       {
         auto FName = F->getName();
+        if (F->isDeclaration() &&
+            !MFunctionWrappersAvailable.count(FName))
+        {
+          if (isTypeWithPointers(CI->getType()))
+          {
+            errs() << "Handling call to external uninstrumented function: "
+                       << FName << "\n";
+          }
+          return;
+        }
         if (isFunctionNotToInstrument(FName))
           return;
       }
@@ -1381,7 +1744,7 @@ namespace
       {
         for (Instruction &I : BB)
         {
-          errs() << "instruction : " << I << "\n";
+          // errs() << "instruction : " << I << "\n";
           SmallVector<Value *, 8> args;
           if (StoreInst *SI = dyn_cast<StoreInst>(&I))
           {
@@ -1419,6 +1782,119 @@ namespace
           }
         }
       }
+    }
+    std::string transformFunctionName(const std::string &str)
+    {
+      // If the function name starts with this prefix, don't just
+      // concatenate, but instead transform the string
+      errs() << "rename complete\n";
+      return "_softboundcets_" + str;
+    }
+    void renameFunctionName(Function *F, Module &M,
+                            bool External)
+    {
+      Type *RetTy = F->getReturnType();
+      const FunctionType *FTy = F->getFunctionType();
+      std::vector<Type *> Params;
+      auto FName = F->getName();
+
+      if (!MFunctionWrappersAvailable.count(FName))
+        return;
+
+      SmallVector<AttributeSet, 8> ParamAttrsVec;
+
+      for (Argument &Arg : F->args())
+      {
+        Params.push_back(Arg.getType());
+      }
+      errs() << "renaming function : " << FName << "\n";
+      // check if we have loaded the rt-lib bitcode into the module already
+      auto *FunctionWrapper = M.getFunction(transformFunctionName(FName.str()));
+
+      // if not, we create a function declaration which can be resolved during
+      // linking
+      if (!FunctionWrapper)
+      {
+        errs() << "Defining wrapper function : " << FName.str() << "\n";
+        FunctionType *FWrapperTy =
+            FunctionType::get(RetTy, Params, FTy->isVarArg());
+        FunctionWrapper = Function::Create(FWrapperTy, F->getLinkage(),
+                                           transformFunctionName(FName.str()));
+        FunctionWrapper->copyAttributesFrom(F);
+        F->getParent()->getFunctionList().push_back(FunctionWrapper);
+      }
+
+      // reimplement doRAUW for Constant Users of Function
+      // where we want to replace the Function with the FunctionWrapper
+      // NOTE: replaceUsesWithIf does not work for Constants
+      for (auto UI = F->use_begin(), E = F->use_end(); UI != E;)
+      {
+        Use &U = *UI++;
+        User *Usr = U.getUser();
+
+        if (auto *I = dyn_cast<Instruction>(Usr))
+        {
+          // Instruction 사용자 처리
+          errs() << "Replacing instruction use: " << *I << "\n";
+          U.set(FunctionWrapper); // Replace directly for instructions
+        }
+        else if (auto *C = dyn_cast<ConstantExpr>(Usr))
+        {
+          // Constant 사용자 처리
+          errs() << "Replacing constant expression use.\n";
+
+          // 새로운 ConstantExpr 생성
+          if (C->getOpcode() == Instruction::BitCast)
+          {
+            auto *NewBitCast = ConstantExpr::getBitCast(FunctionWrapper, C->getType());
+            C->handleOperandChange(F, NewBitCast);
+          }
+          else
+          {
+            errs() << "Unhandled constant expression opcode: " << C->getOpcode() << "\n";
+          }
+        }
+      }
+
+      F->replaceUsesWithIf(FunctionWrapper, [this](Use &U) -> bool
+                           {
+    auto *Usr = U.getUser();
+    auto *I = dyn_cast<Instruction>(Usr);
+    if (I) {
+      return InstrumentedFunctions.contains(I->getFunction());
+    }
+    return false; });
+    }
+
+    void renamefunctions(Module &module)
+    {
+      bool change = false;
+
+      do
+      {
+        change = false;
+        for (Module::iterator ff_begin = module.begin(), ff_end = module.end();
+             ff_begin != ff_end; ++ff_begin)
+        {
+
+          Function *func_ptr = dyn_cast<Function>(ff_begin);
+
+          if (m_func_transformed.count(func_ptr->getName()) ||
+              isFunctionNotToInstrument(func_ptr->getName()))
+          {
+            errs() << "not to change function name : " << func_ptr->getName() << "\n";
+            continue;
+          }
+
+          m_func_transformed[func_ptr->getName()] = true;
+          m_func_transformed[transformFunctionName(func_ptr->getName().str())] =
+              true;
+          bool is_external = func_ptr->isDeclaration();
+          renameFunctionName(func_ptr, module, is_external);
+          change = true;
+          break;
+        }
+      } while (change);
     }
 
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &MAM)
@@ -1539,6 +2015,7 @@ namespace
         collect_metadata(F);
         insert_func(F);
       }
+      renamefunctions(M);
       return PreservedAnalyses::none();
     };
   };

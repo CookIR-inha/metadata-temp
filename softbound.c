@@ -92,7 +92,7 @@ size_t get_primary_index(void *ptr)
 
 size_t get_secondary_index(void *ptr)
 {
-  return ((size_t)ptr >> 3) & 0x3fffff; 
+  return ((size_t)ptr >> 3) & 0x3fffff;
 }
 
 void _init_metadata_table()
@@ -204,7 +204,8 @@ Metadata *__softboundcets_shadow_stack_metadata_ptr(size_t arg_no)
   return (Metadata *)metadata_ptr;
 }
 
-Metadata *__softboundcets_shadowspace_metadata_ptr(void *address) {
+Metadata *__softboundcets_shadowspace_metadata_ptr(void *address)
+{
 
   size_t ptr = (size_t)address;
   Metadata *trie_secondary_table;
@@ -267,4 +268,26 @@ void *__softboundcets_load_bound_shadow_stack(size_t arg_no)
 
   void *bound = *((void **)bound_ptr);
   return bound;
+}
+void __softboundcets_store_base_shadow_stack(void *base,
+                                             size_t arg_no)
+{
+  printf("storing malloc's base\n");
+  assert(arg_no >= 0);
+  size_t count =
+      2 + arg_no * 2 + 0;
+  void **base_ptr = (void **)(__softboundcets_shadow_stack_ptr + count);
+
+  *(base_ptr) = base;
+}
+void __softboundcets_store_bound_shadow_stack(void *bound,
+                                              size_t arg_no)
+{
+  printf("storing malloc's bound\n");
+  assert(arg_no >= 0);
+  size_t count =
+      2 + arg_no * 2 + 1;
+  void **bound_ptr = (void **)(__softboundcets_shadow_stack_ptr + count);
+
+  *(bound_ptr) = bound;
 }

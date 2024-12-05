@@ -2,5 +2,13 @@
 /home/test/metadata-temp/build/CMakeFiles/omp_gen.dir
 /home/test/metadata-temp/build/CMakeFiles/acc_gen.dir
 /home/test/metadata-temp/build/CMakeFiles/SoftBoundPass.dir
+/home/test/metadata-temp/build/CMakeFiles/GenerateIR.dir
+/home/test/metadata-temp/build/CMakeFiles/softbound.dir
+/home/test/metadata-temp/build/CMakeFiles/softbound-wrapper.dir
+/home/test/metadata-temp/build/CMakeFiles/output_binary.dir
 /home/test/metadata-temp/build/CMakeFiles/edit_cache.dir
 /home/test/metadata-temp/build/CMakeFiles/rebuild_cache.dir
+/home/test/metadata-temp/build/CMakeFiles/list_install_components.dir
+/home/test/metadata-temp/build/CMakeFiles/install.dir
+/home/test/metadata-temp/build/CMakeFiles/install/local.dir
+/home/test/metadata-temp/build/CMakeFiles/install/strip.dir
