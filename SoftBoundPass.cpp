@@ -63,12 +63,13 @@ namespace
     FunctionCallee printMetadataTable;
     FunctionCallee getBaseAddr;
     FunctionCallee getBoundAddr;
-    FunctionCallee initTable;
+    FunctionCallee SBinitTable;
     FunctionCallee StoreMetadataShadowStackFn;
     FunctionCallee AllocateShadowStackFn;
     FunctionCallee LoadMetadataPtrShadowStackFn;
     FunctionCallee LoadMetadataPtrFn;
     FunctionCallee DeallocateShadowStackFn;
+    FunctionCallee ASaninit;
 
     StringMap<bool> MFunctionWrappersAvailable = {
         {"system", true},
@@ -1566,7 +1567,7 @@ namespace
           if (isTypeWithPointers(CI->getType()))
           {
             errs() << "Handling call to external uninstrumented function: "
-                       << FName << "\n";
+                   << FName << "\n";
           }
           return;
         }
@@ -1966,8 +1967,13 @@ namespace
               Type::getInt8PtrTy(M.getContext()),
               {Type::getInt8PtrTy(M.getContext())},
               false));
-      initTable = M.getOrInsertFunction(
-          "_init_metadata_table",
+      SBinitTable = M.getOrInsertFunction(
+          "_softboundcets_init_metadata_table",
+          FunctionType::get(
+              Type::getVoidTy(M.getContext()),
+              false));
+      ASaninit = M.getOrInsertFunction(
+          "_ASan_init",
           FunctionType::get(
               Type::getVoidTy(M.getContext()),
               false));
@@ -1988,10 +1994,6 @@ namespace
       LoadMetadataPtrFn = M.getOrInsertFunction(
           "__softboundcets_shadowspace_metadata_ptr", MetadataStructPtrTy, MVoidPtrTy);
 
-      FunctionCallee initTable = M.getOrInsertFunction(
-          "_init_metadata_table",
-          FunctionType::get(Type::getVoidTy(M.getContext()), false));
-
       Function *CtorFunc = Function::Create(
           FunctionType::get(Type::getVoidTy(M.getContext()), false), // 함수 타입: void()
           GlobalValue::InternalLinkage, "__global_init", &M);        // 함수 이름 및 링키지
@@ -2000,7 +2002,10 @@ namespace
 
       // IRBuilder 생성
       IRBuilder<> IRB(BB);
-      IRB.CreateCall(initTable);
+      // softbound_init_func
+      IRB.CreateCall(SBinitTable);
+      // ASan init
+      IRB.CreateCall(ASaninit);
       // 함수 종료 코드 추가
       IRB.CreateRetVoid();
 

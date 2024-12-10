@@ -15,6 +15,7 @@
 #define RESET "\033[0m"
 #define BYTES_PER_LINE 8
 #include <assert.h>
+
 /*
 주소의 희소성을 메모리 효율적 처리를 위해 2중 trie구조로 변경
 2중 배열(primary table: 루트, secondary table: 동적 할당)
@@ -95,7 +96,7 @@ size_t get_secondary_index(void *ptr)
   return ((size_t)ptr >> 3) & 0x3fffff;
 }
 
-void _init_metadata_table()
+void _softboundcets_init_metadata_table()
 {
   printf("initializing table\n");
   primary_table = (Metadata **)mmap(NULL, sizeof(Metadata) * PRIMARY_TABLE_SIZE,
@@ -189,6 +190,58 @@ void _softboundcets_bound_check(void *base, void *bound, void *access)
     print_memory_dump(access, base, bound);
     return;
   }
+  int8_t* shadow_addr = get_shadow_address(access);
+    size_t shadow_block_offset = get_shadow_block_offset(access);
+    
+    /*
+    메모리 접근은 할당과 달리 8바이트 정렬이 보장되지 않음
+    다양한 메모리 접근 case가 있음(1블록 접근, 여러 블록 접근, 8바이트 정렬된 접근, 정렬되지 않은 접근..)
+    따라서 일반화를 위해 첫 블록, 중간 블록, 마지막 블록으로 나누어 처리해야 함
+    예시)
+    섀도우 메모리 오프셋: 0x0
+    메모리 접근 주소와 사이즈: 0x4, 32byte
+    전체 접근 주소: 0x04-0x23 (32byte)
+    첫 블록의 접근 주소: 0x4-0x7 (4byte)
+    중간 블록의 접근 주소: 0x8-0xf, 0x10-0x17, 0x18-0x1f (24byte)
+    마지막 블록의 접근 주소: 0x20-0x23 (4byte)
+
+    이 경우 첫 블록에서는 마지막 4바이트만 접근하지만
+    할당할 때 8바이트 정렬된 주소로부터 연속으로 할당되었으므로 해당 블록의 8바이트 전체가 유효해야만 접근 가능함
+    중간 블록의 경우 항상 8바이트 전체가 유효해야 접근 가능함
+    마지막 블록의 경우 첫 4바이트만 유효하면 접근 가능함
+    */
+
+    //첫 블록에서 유효해야 하는 바이트 크기
+    size_t size = (uintptr_t)bound - (uintptr_t)base;
+    int32_t first_bytes = shadow_block_offset + size;
+    if (first_bytes > 8) first_bytes = 8;
+    
+    //접근 가능한지 확인
+    if (first_bytes > shadow_addr[0]) {
+        report_error(access, size, shadow_addr);
+    }
+
+    int32_t remaining_size = size;
+    //첫 블록에서 접근한 만큼 빼줌.
+    if (first_bytes == 8) {
+        remaining_size = remaining_size - (8 - shadow_block_offset);
+    }
+    else {//접근 영역 전체가 1블록을 초과하지 않는다면 더 이상 진행할 필요 없으므로 size = 0
+        remaining_size = 0;
+    }
+    
+    //중간 블록에 대해 접근 가능한지 확인
+    size_t i = 1;
+    for (; remaining_size >= 8; i++, remaining_size -= 8) {
+         if (shadow_addr[i] != 8) {
+            report_error(access, size, &shadow_addr[i]);
+        }
+    }
+
+    //마지막 블록에 대해 접근 가능한지 확인
+    if (remaining_size > shadow_addr[i]) {
+        report_error(access, size, &shadow_addr[i]);
+    }
 }
 void _softboundcets_print_metadata(void *base, void *bound)
 {

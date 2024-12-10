@@ -6,46 +6,54 @@ target triple = "x86_64-pc-linux-gnu"
 %struct.teststruct = type { i32, i32, i32 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local void @func(i32* noundef %0) #0 !dbg !19 {
-  %2 = alloca i32*, align 8
-  %3 = alloca i8*, align 8
-  store i32* %0, i32** %2, align 8
-  call void @llvm.dbg.declare(metadata i32** %2, metadata !23, metadata !DIExpression()), !dbg !24
-  call void @llvm.dbg.declare(metadata i8** %3, metadata !25, metadata !DIExpression()), !dbg !27
-  %4 = load i32*, i32** %2, align 8, !dbg !28
-  %5 = bitcast i32* %4 to i8*, !dbg !28
-  store i8* %5, i8** %3, align 8, !dbg !27
-  %6 = load i8*, i8** %3, align 8, !dbg !29
-  %7 = bitcast i8* %6 to i32*, !dbg !30
-  %8 = getelementptr inbounds i32, i32* %7, i64 10, !dbg !31
-  store i32 255, i32* %8, align 4, !dbg !32
-  ret void, !dbg !33
+define dso_local void @func(i32* noundef %0, i32* noundef %1) #0 !dbg !19 {
+  %3 = alloca i32*, align 8
+  %4 = alloca i32*, align 8
+  %5 = alloca i8*, align 8
+  store i32* %0, i32** %3, align 8
+  call void @llvm.dbg.declare(metadata i32** %3, metadata !23, metadata !DIExpression()), !dbg !24
+  store i32* %1, i32** %4, align 8
+  call void @llvm.dbg.declare(metadata i32** %4, metadata !25, metadata !DIExpression()), !dbg !26
+  call void @llvm.dbg.declare(metadata i8** %5, metadata !27, metadata !DIExpression()), !dbg !29
+  %6 = load i32*, i32** %4, align 8, !dbg !30
+  %7 = bitcast i32* %6 to i8*, !dbg !30
+  store i8* %7, i8** %5, align 8, !dbg !29
+  %8 = load i8*, i8** %5, align 8, !dbg !31
+  %9 = bitcast i8* %8 to i32*, !dbg !32
+  %10 = getelementptr inbounds i32, i32* %9, i64 10, !dbg !33
+  store i32 255, i32* %10, align 4, !dbg !34
+  ret void, !dbg !35
 }
 
 ; Function Attrs: nofree nosync nounwind readnone speculatable willreturn
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local i32 @main() #0 !dbg !34 {
+define dso_local i32 @main() #0 !dbg !36 {
   %1 = alloca [10 x i32], align 16
-  %2 = alloca %struct.teststruct*, align 8
-  %3 = alloca i32*, align 8
-  call void @llvm.dbg.declare(metadata [10 x i32]* %1, metadata !37, metadata !DIExpression()), !dbg !41
-  call void @llvm.dbg.declare(metadata %struct.teststruct** %2, metadata !42, metadata !DIExpression()), !dbg !43
-  %4 = call noalias i8* @malloc(i64 noundef 12) #3, !dbg !44
-  %5 = bitcast i8* %4 to %struct.teststruct*, !dbg !45
-  store %struct.teststruct* %5, %struct.teststruct** %2, align 8, !dbg !43
-  %6 = load %struct.teststruct*, %struct.teststruct** %2, align 8, !dbg !46
-  %7 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %6, i32 0, i32 0, !dbg !47
-  store i32 1, i32* %7, align 4, !dbg !48
-  call void @llvm.dbg.declare(metadata i32** %3, metadata !49, metadata !DIExpression()), !dbg !50
-  %8 = load %struct.teststruct*, %struct.teststruct** %2, align 8, !dbg !51
-  %9 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %8, i64 1, !dbg !52
-  %10 = bitcast %struct.teststruct* %9 to i32*, !dbg !53
-  store i32* %10, i32** %3, align 8, !dbg !50
-  %11 = load i32*, i32** %3, align 8, !dbg !54
-  store i32 -559038737, i32* %11, align 4, !dbg !55
-  ret i32 0, !dbg !56
+  %2 = alloca [8 x i32], align 16
+  %3 = alloca %struct.teststruct*, align 8
+  %4 = alloca i32*, align 8
+  call void @llvm.dbg.declare(metadata [10 x i32]* %1, metadata !39, metadata !DIExpression()), !dbg !43
+  call void @llvm.dbg.declare(metadata [8 x i32]* %2, metadata !44, metadata !DIExpression()), !dbg !48
+  call void @llvm.dbg.declare(metadata %struct.teststruct** %3, metadata !49, metadata !DIExpression()), !dbg !50
+  %5 = call noalias i8* @malloc(i64 noundef 12) #3, !dbg !51
+  %6 = bitcast i8* %5 to %struct.teststruct*, !dbg !52
+  store %struct.teststruct* %6, %struct.teststruct** %3, align 8, !dbg !50
+  %7 = load %struct.teststruct*, %struct.teststruct** %3, align 8, !dbg !53
+  %8 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %7, i32 0, i32 0, !dbg !54
+  store i32 1, i32* %8, align 4, !dbg !55
+  %9 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 0, !dbg !56
+  %10 = getelementptr inbounds [8 x i32], [8 x i32]* %2, i64 0, i64 0, !dbg !57
+  call void @func(i32* noundef %9, i32* noundef %10), !dbg !58
+  call void @llvm.dbg.declare(metadata i32** %4, metadata !59, metadata !DIExpression()), !dbg !60
+  %11 = load %struct.teststruct*, %struct.teststruct** %3, align 8, !dbg !61
+  %12 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %11, i64 1, !dbg !62
+  %13 = bitcast %struct.teststruct* %12 to i32*, !dbg !63
+  store i32* %13, i32** %4, align 8, !dbg !60
+  %14 = load i32*, i32** %4, align 8, !dbg !64
+  store i32 -559038737, i32* %14, align 4, !dbg !65
+  ret i32 0, !dbg !66
 }
 
 ; Function Attrs: nounwind
@@ -61,7 +69,7 @@ attributes #3 = { nounwind }
 !llvm.ident = !{!18}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "Ubuntu clang version 14.0.0-1ubuntu1.1", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !2, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "7891d951f9f6e354edefa88e7f8d3370")
+!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "9d9e54216a54c3f28afefbfc6451e0cc")
 !2 = !{!3, !5}
 !3 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !4, size: 64)
 !4 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
@@ -81,39 +89,49 @@ attributes #3 = { nounwind }
 !18 = !{!"Ubuntu clang version 14.0.0-1ubuntu1.1"}
 !19 = distinct !DISubprogram(name: "func", scope: !1, file: !1, line: 3, type: !20, scopeLine: 4, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !22)
 !20 = !DISubroutineType(types: !21)
-!21 = !{null, !3}
+!21 = !{null, !3, !3}
 !22 = !{}
 !23 = !DILocalVariable(name: "arr", arg: 1, scope: !19, file: !1, line: 3, type: !3)
 !24 = !DILocation(line: 3, column: 16, scope: !19)
-!25 = !DILocalVariable(name: "test", scope: !19, file: !1, line: 5, type: !26)
-!26 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: null, size: 64)
-!27 = !DILocation(line: 5, column: 8, scope: !19)
-!28 = !DILocation(line: 5, column: 15, scope: !19)
-!29 = !DILocation(line: 6, column: 11, scope: !19)
-!30 = !DILocation(line: 6, column: 4, scope: !19)
-!31 = !DILocation(line: 6, column: 16, scope: !19)
-!32 = !DILocation(line: 6, column: 22, scope: !19)
-!33 = !DILocation(line: 7, column: 1, scope: !19)
-!34 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 16, type: !35, scopeLine: 17, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !22)
-!35 = !DISubroutineType(types: !36)
-!36 = !{!4}
-!37 = !DILocalVariable(name: "arr", scope: !34, file: !1, line: 18, type: !38)
-!38 = !DICompositeType(tag: DW_TAG_array_type, baseType: !4, size: 320, elements: !39)
-!39 = !{!40}
-!40 = !DISubrange(count: 10)
-!41 = !DILocation(line: 18, column: 6, scope: !34)
-!42 = !DILocalVariable(name: "node", scope: !34, file: !1, line: 21, type: !5)
-!43 = !DILocation(line: 21, column: 21, scope: !34)
-!44 = !DILocation(line: 21, column: 49, scope: !34)
-!45 = !DILocation(line: 21, column: 28, scope: !34)
-!46 = !DILocation(line: 22, column: 2, scope: !34)
-!47 = !DILocation(line: 22, column: 8, scope: !34)
-!48 = !DILocation(line: 22, column: 15, scope: !34)
-!49 = !DILocalVariable(name: "out_of_bound_access", scope: !34, file: !1, line: 24, type: !3)
-!50 = !DILocation(line: 24, column: 7, scope: !34)
-!51 = !DILocation(line: 24, column: 37, scope: !34)
-!52 = !DILocation(line: 24, column: 42, scope: !34)
-!53 = !DILocation(line: 24, column: 29, scope: !34)
-!54 = !DILocation(line: 25, column: 3, scope: !34)
-!55 = !DILocation(line: 25, column: 23, scope: !34)
-!56 = !DILocation(line: 26, column: 1, scope: !34)
+!25 = !DILocalVariable(name: "arr2", arg: 2, scope: !19, file: !1, line: 3, type: !3)
+!26 = !DILocation(line: 3, column: 26, scope: !19)
+!27 = !DILocalVariable(name: "test", scope: !19, file: !1, line: 5, type: !28)
+!28 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: null, size: 64)
+!29 = !DILocation(line: 5, column: 8, scope: !19)
+!30 = !DILocation(line: 5, column: 15, scope: !19)
+!31 = !DILocation(line: 6, column: 11, scope: !19)
+!32 = !DILocation(line: 6, column: 4, scope: !19)
+!33 = !DILocation(line: 6, column: 16, scope: !19)
+!34 = !DILocation(line: 6, column: 22, scope: !19)
+!35 = !DILocation(line: 7, column: 1, scope: !19)
+!36 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 16, type: !37, scopeLine: 17, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !22)
+!37 = !DISubroutineType(types: !38)
+!38 = !{!4}
+!39 = !DILocalVariable(name: "arr", scope: !36, file: !1, line: 18, type: !40)
+!40 = !DICompositeType(tag: DW_TAG_array_type, baseType: !4, size: 320, elements: !41)
+!41 = !{!42}
+!42 = !DISubrange(count: 10)
+!43 = !DILocation(line: 18, column: 6, scope: !36)
+!44 = !DILocalVariable(name: "arr2", scope: !36, file: !1, line: 19, type: !45)
+!45 = !DICompositeType(tag: DW_TAG_array_type, baseType: !4, size: 256, elements: !46)
+!46 = !{!47}
+!47 = !DISubrange(count: 8)
+!48 = !DILocation(line: 19, column: 6, scope: !36)
+!49 = !DILocalVariable(name: "node", scope: !36, file: !1, line: 22, type: !5)
+!50 = !DILocation(line: 22, column: 21, scope: !36)
+!51 = !DILocation(line: 22, column: 49, scope: !36)
+!52 = !DILocation(line: 22, column: 28, scope: !36)
+!53 = !DILocation(line: 23, column: 2, scope: !36)
+!54 = !DILocation(line: 23, column: 8, scope: !36)
+!55 = !DILocation(line: 23, column: 15, scope: !36)
+!56 = !DILocation(line: 24, column: 7, scope: !36)
+!57 = !DILocation(line: 24, column: 12, scope: !36)
+!58 = !DILocation(line: 24, column: 2, scope: !36)
+!59 = !DILocalVariable(name: "out_of_bound_access", scope: !36, file: !1, line: 25, type: !3)
+!60 = !DILocation(line: 25, column: 7, scope: !36)
+!61 = !DILocation(line: 25, column: 37, scope: !36)
+!62 = !DILocation(line: 25, column: 42, scope: !36)
+!63 = !DILocation(line: 25, column: 29, scope: !36)
+!64 = !DILocation(line: 26, column: 3, scope: !36)
+!65 = !DILocation(line: 26, column: 23, scope: !36)
+!66 = !DILocation(line: 27, column: 1, scope: !36)
