@@ -54,6 +54,7 @@ namespace
     bool ClAssociateZeroInitializedGlobalsWithOmnivalidMetadata;
     bool ClAssociateIntToPtrCastsWithOmnivalidMetadata;
     bool ClAssociateVaargPointerWithOmnivalidMetadata;
+    bool ClIntraObjectBounds;
 
     ConstantPointerNull *MVoidNullPtr;
     PointerType *MVoidPtrTy;
@@ -246,7 +247,7 @@ namespace
         {"obstack_printf", true},
         {"obstack_vprintf", true},
         {"open_memstream", true},
-        {"printf", true},
+        // {"printf", false},
         {"putc", true},
         {"putc_unlocked", true},
         {"putw", true},
@@ -1303,12 +1304,12 @@ namespace
         // `alloca` 명령어에 지정된 크기를 Idx로 설정
         Idx = AI->getOperand(0);
       }
-
+      errs() << "alloca type id : " << AI->getAllocatedType()->getTypeID() << "\n";
       // Bound 주소 계산: GEP 명령어로 base 주소에 Idx를 더해 bound 주소 계산
-      Value *boundGEP = builder.CreateGEP(AI->getAllocatedType(), AI, Idx, "mtmp");
-      Value *bound = castToVoidPtr(boundGEP, builder); // Bound를 void*로 캐스팅
+      Value *Bound = builder.CreateGEP(AI->getAllocatedType(), AI, Idx, "mtmp");
+      Bound = castToVoidPtr(Bound, builder);
 
-      associateBaseBound(AI, base, bound);
+      associateBaseBound(AI, base, Bound);
     };
 
     void handle_store(Instruction &I)
@@ -1342,7 +1343,44 @@ namespace
 
       // vector의 경우 아직 고려하지 않음
     };
+    void handleArrayGEP(GetElementPtrInst *GEPI, Value *&base, Value *&bound, IRBuilder<> &IRB)
+    {
+      ArrayType *ATy = cast<ArrayType>(GEPI->getPointerOperandType()->getPointerElementType());
 
+      // GEP의 인덱스 값을 가져옴
+      Value *Index = GEPI->getOperand(2); // 배열 인덱스 (i32 또는 i64)
+
+      // 배열 요소의 크기 계산
+      DataLayout DL(GEPI->getModule());
+      uint64_t ElementSize = DL.getTypeAllocSize(ATy->getElementType());
+
+      // base와 bound를 배열 요소 수준으로 조정
+      base = IRB.CreateGEP(base, IRB.CreateMul(Index, IRB.getInt64(ElementSize)));
+      bound = IRB.CreateGEP(base, IRB.getInt64(ElementSize));
+
+      // 새롭게 계산된 base와 bound를 GEP와 연관시킴
+      associateBaseBound(GEPI, base, bound);
+    }
+    void handleStructGEP(GetElementPtrInst *GEPI, Value *&base, Value *&bound, IRBuilder<> &IRB)
+    {
+      StructType *STy = cast<StructType>(GEPI->getPointerOperandType()->getPointerElementType());
+      unsigned FieldIndex = cast<ConstantInt>(GEPI->getOperand(2))->getZExtValue(); // 필드 인덱스 가져오기
+
+      DataLayout DL(GEPI->getModule()); // DataLayout에서 구조체 크기 계산
+      const StructLayout *SL = DL.getStructLayout(STy);
+
+      // 필드의 시작 위치와 끝 위치 계산
+      uint64_t FieldStart = SL->getElementOffset(FieldIndex);
+      uint64_t FieldSize = DL.getTypeAllocSize(STy->getElementType(FieldIndex));
+      uint64_t FieldEnd = FieldStart + FieldSize;
+
+      // 기존 base와 bound를 조정하여 필드 수준으로 설정
+      base = IRB.CreateGEP(base, IRB.getInt64(FieldStart));
+      bound = IRB.CreateGEP(base, IRB.getInt64(FieldEnd - FieldStart));
+
+      // 새롭게 계산된 base와 bound를 GEP와 연관시킴
+      associateBaseBound(GEPI, base, bound);
+    }
     void handle_GEP(Instruction &I)
     {
       GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(&I);
@@ -1359,8 +1397,31 @@ namespace
         return;
       }
       // GEP연산에서 base와 offset을 더해서 나온 access하는 주소를 구하는데, 여기서 base랑 bound를 구해서 access로 assoc 함
-      associateBaseBound(GEPI, base, bound); // %ptr = base+offset, %ptr에 대한 base, bound
-
+      // associateBaseBound(GEPI, base, bound); // %ptr = base+offset, %ptr에 대한 base, bound
+      if (ClIntraObjectBounds)
+      {
+        Type *PtrType = GEPI->getPointerOperandType()->getPointerElementType();
+        if (StructType *STy = dyn_cast<StructType>(PtrType))
+        {
+          // GEP가 구조체 필드를 참조하는 경우
+          handleStructGEP(GEPI, base, bound, IRB);
+        }
+        else if (PtrType->isArrayTy())
+        {
+          // GEP가 배열 요소를 참조하는 경우
+          handleArrayGEP(GEPI, base, bound, IRB);
+        }
+        else
+        {
+          // GEP가 다른 타입을 참조할 경우 기본 처리
+          associateBaseBound(GEPI, base, bound);
+        }
+      }
+      else
+      {
+        // 기본 GEP 처리
+        associateBaseBound(GEPI, base, bound);
+      }
       // 새로운 GEP 명령어에 메타데이터 연결
     };
     bool isVaargGep(GetElementPtrInst *GepInst)
@@ -1429,27 +1490,29 @@ namespace
     {
       LoadInst *LI = dyn_cast<LoadInst>(&I);
       Type *LoadTy = LI->getType();
+      errs() << "Load instruction's type ID is : " << LI->getType()->getTypeID() << "\n";
       Metadata data;
       int typeID = LoadTy->getTypeID();
 
       Value *LoadSrc = LI->getPointerOperand();
       IRBuilder<> IRB(LI);
       Value *LoadSrcBitcast = castToVoidPtr(LoadSrc, IRB);
-      // if (!isTypeWithPointers(LoadTy))
-      // {
-      //   return;
-      // }
-      // GetElementPtrInst *GepInst =
-      //     dyn_cast<GetElementPtrInst>(LI->getPointerOperand());
-      // if (GepInst && isVaargGep(GepInst))
-      // {
-      //   associateOmnivalidMetadata(LI);
-      //   if (ClAssociateVaargPointerWithOmnivalidMetadata)
-      //     varargAssociatePointerLoads(LI);
-      // }
+      if (!isTypeWithPointers(LoadTy))
+      {
+        return;
+      }
+      GetElementPtrInst *GepInst =
+          dyn_cast<GetElementPtrInst>(LI->getPointerOperand());
+      if (GepInst && isVaargGep(GepInst))
+      {
+        associateOmnivalidMetadata(LI);
+        if (ClAssociateVaargPointerWithOmnivalidMetadata)
+          varargAssociatePointerLoads(LI);
+      }
 
       if (isa<PointerType>(LoadTy))
       {
+        // handling pointer
         if (!(MValueBaseMap.count(LI) && MValueBoundMap.count(LI)))
         {
           errs() << "Working\n";
@@ -1460,6 +1523,11 @@ namespace
           data.Bound = IRB.CreateLoad(BoundPtr->getType()->getPointerElementType(), BoundPtr, "base");
           associateBaseBound(LI, data.Base, data.Bound);
         }
+      }
+      else if (LoadTy->isAggregateType())
+      {
+        errs() << "THIS IS AGGREGATE TYPE\n";
+        // handleAggregateLoad(Load);
       }
     };
 
@@ -1676,6 +1744,12 @@ namespace
       }
       return false;
     }
+    bool isExternalDefinitelyInstrumentedFunction(
+        const StringRef &Str)
+    {
+      return isFunctionNotToInstrument(Str) ||
+             (MFunctionWrappersAvailable.count(Str) > 0);
+    }
     void handle_call(Instruction &I)
     {
       CallInst *CI = dyn_cast<CallInst>(&I);
@@ -1685,7 +1759,7 @@ namespace
       {
         auto FName = F->getName();
         if (F->isDeclaration() &&
-            !MFunctionWrappersAvailable.count(FName))
+            !isExternalDefinitelyInstrumentedFunction(FName))
         {
           if (isTypeWithPointers(CI->getType()))
           {
@@ -1895,11 +1969,11 @@ namespace
               args.push_back(base);
               args.push_back(bound);
               args.push_back(access);
-              for (auto &arg : args)
-              {
-                errs() << "argument of boundcheck : " << *arg << "\n";
-              }
-              errs() << "inserting boundcheck to " << *SI << "\n";
+              // for (auto &arg : args)
+              // {
+              //   errs() << "argument of boundcheck : " << *arg << "\n";
+              // }
+              // errs() << "inserting boundcheck to " << *SI << "\n";
 
               builder->CreateCall(boundCheck, args);
             }
@@ -1925,7 +1999,7 @@ namespace
             args.push_back(base);
             args.push_back(bound);
             args.push_back(access);
-            errs() << "inserting boundcheck to " << *LI << "\n";
+            // errs() << "inserting boundcheck to " << *LI << "\n";
             builder->CreateCall(boundCheck, args);
           }
         }
@@ -1947,7 +2021,10 @@ namespace
       auto FName = F->getName();
 
       if (!MFunctionWrappersAvailable.count(FName))
+      {
+        errs() << "returing......................" << FName << "\n";
         return;
+      }
 
       SmallVector<AttributeSet, 8> ParamAttrsVec;
 

@@ -219,7 +219,7 @@ void _softboundcets_bound_check(void *base, void *bound, void *access)
   // 전체 접근 주소: 0x04-0x23 (32byte)
   // 첫 블록의 접근 주소: 0x4-0x7 (4byte)
   // 중간 블록의 접근 주소: 0x8-0xf, 0x10-0x17, 0x18-0x1f (24byte)
-  // 마지막 블록의 접근 주소: 0x20-0x23 (4byte)
+  // 마지막 블록의 접근 주소: 0x20-0x23 (4byte)s
 
   // 이 경우 첫 블록에서는 마지막 4바이트만 접근하지만
   // 할당할 때 8바이트 정렬된 주소로부터 연속으로 할당되었으므로 해당 블록의 8바이트 전체가 유효해야만 접근 가능함
@@ -360,7 +360,6 @@ void *__softboundcets_load_bound_shadow_stack(size_t arg_no)
 void __softboundcets_store_base_shadow_stack(void *base,
                                              size_t arg_no)
 {
-  printf("storing malloc's base\n");
   assert(arg_no >= 0);
   size_t count =
       2 + arg_no * 2 + 0;
@@ -371,11 +370,20 @@ void __softboundcets_store_base_shadow_stack(void *base,
 void __softboundcets_store_bound_shadow_stack(void *bound,
                                               size_t arg_no)
 {
-  printf("storing malloc's bound\n");
   assert(arg_no >= 0);
   size_t count =
       2 + arg_no * 2 + 1;
   void **bound_ptr = (void **)(__softboundcets_shadow_stack_ptr + count);
 
   *(bound_ptr) = bound;
+}
+void
+__softboundcets_propagate_metadata_shadow_stack_from(int from_argnum,
+                                                     int to_argnum) {
+  void *base = __softboundcets_load_base_shadow_stack(from_argnum);
+  void *bound = __softboundcets_load_bound_shadow_stack(from_argnum);
+  __softboundcets_store_base_shadow_stack(base, to_argnum);
+  __softboundcets_store_bound_shadow_stack(bound, to_argnum);
+
+
 }

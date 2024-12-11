@@ -65,5 +65,6 @@ void *__softboundcets_load_base_shadow_stack(size_t arg_no);
 void *__softboundcets_load_bound_shadow_stack(size_t arg_no);
 void __softboundcets_store_base_shadow_stack(void *base, size_t arg_no);
 void __softboundcets_store_bound_shadow_stack(void *bound, size_t arg_no);
-
+void __softboundcets_propagate_metadata_shadow_stack_from(int from_argnum,
+                                                          int to_argnum);
 #endif // SOFTBOUND_H

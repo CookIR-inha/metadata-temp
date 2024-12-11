@@ -323,8 +323,6 @@ k = -1이면 해제된 영역(접근 불가)
 */
 //메모리 접근을 검증(메모리 접근 명령어 앞에 삽입되어야 하는 함수)
 void validate_memory_access(void* addr, int32_t size) {
-    printf("stack addr is : %p, access is : %p\n",stack_addr,addr);
-    printf("in validate_memory_access addr : %p, size : %d\n",addr, size);
     int8_t* shadow_addr = get_shadow_address(addr);
     size_t shadow_block_offset = get_shadow_block_offset(addr);
     

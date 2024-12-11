@@ -65,6 +65,9 @@
         "mman-linux.h": "c",
         "stdlib.h": "c",
         "mman.h": "c",
-        "shadow_memory.h": "c"
+        "shadow_memory.h": "c",
+        "string.h": "c",
+        "stdio.h": "c",
+        "softbound.h": "c"
     }
 }
