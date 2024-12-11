@@ -21,12 +21,12 @@ int main()
 	void *arr_copy = arr;
 	*((int *)arr_copy + 11) = 1;
 	struct teststruct *node = (struct teststruct *)malloc(sizeof(struct teststruct));
-	// node->field1 = 1;
-	// // func(arr, arr2);
+	node->field1 = 1;
+	func(arr, arr2);
 	free(node);
 	node->field1 = 2;
-	// int *out_of_bound_access = (int *)(node + 1); // 구조체의 끝을 넘어가는 포인터
-	// *out_of_bound_access = 0xdeadbeef;			  // 경계 외부 메모리에 쓰기
+	int *out_of_bound_access = (int *)(node + 1); // 구조체의 끝을 넘어가는 포인터
+	*out_of_bound_access = 0xdeadbeef;			  // 경계 외부 메모리에 쓰기
 
 }
 /*

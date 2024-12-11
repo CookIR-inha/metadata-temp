@@ -115,7 +115,7 @@ void _softboundcets_init_metadata_table()
                      PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 
   assert(__softboundcets_shadow_stack_ptr != (void *)-1);
-  printf("shadow_stack_address : %p\n", __softboundcets_shadow_stack_ptr);
+  // printf("shadow_stack_address : %p\n", __softboundcets_shadow_stack_ptr);
   *((size_t *)__softboundcets_shadow_stack_ptr) = 0; /* prev stack size */
   size_t *current_size_shadow_stack_ptr = __softboundcets_shadow_stack_ptr + 1;
   *(current_size_shadow_stack_ptr) = 0;
@@ -142,9 +142,9 @@ void _softboundcets_set_metadata(void *ptr, void *base, void *bound)
   Metadata *entry = &secondary_table[secondary_index];
   entry->base = base;
   entry->bound = bound;
-  printf("Stored Malloc Info - base: %p, bound: %p\n",
-         primary_table[primary_index][secondary_index].base,
-         primary_table[primary_index][secondary_index].bound);
+  // printf("Stored Malloc Info - base: %p, bound: %p\n",
+  //        primary_table[primary_index][secondary_index].base,
+  //        primary_table[primary_index][secondary_index].bound);
   return;
 }
 
@@ -184,18 +184,28 @@ void _softboundcets_print_metadata_table()
 
 void _softboundcets_bound_check(void *base, void *bound, void *access)
 {
-  if(!base) return;
+  if (!base)
+    return;
   bool OOB = false;
   bool UAF = false;
-  if (bound <= access)
+  if (stack_addr < base)
   {
-    OOB = true;
-    // printf("***out-of-bound detected***\n");
-    // printf("accessing : %p, bound is : %p\n", access, bound);
-    // print_memory_dump(access, base, bound);
-    
+    // stack OOB detection
+    if (bound <= access)
+    {
+      OOB = true;
+      printf("***out-of-bound detected***\n");
+      printf("accessing : %p, bound is : %p\n", access, bound);
+      print_memory_dump(access, base, bound);
+    }
   }
-  
+  else
+  {
+    // heap OOB or UAF detection
+    size_t size = (uintptr_t)access - (uintptr_t)base;
+    validate_memory_access(access, size);
+  }
+
   // int8_t *shadow_addr = get_shadow_address(access);
   // size_t shadow_block_offset = get_shadow_block_offset(access);
 
@@ -221,14 +231,9 @@ void _softboundcets_bound_check(void *base, void *bound, void *access)
   // printf("access is : %p\n", access);
   // printf("base is : %p\n", base);
 
-  size_t size = (uintptr_t)access - (uintptr_t)base;
-  printf("in validate_memory_access addr : %p, size : %d\n",access, size);
-  printf("Size is : %ld\n", size);
-  void *addr = NULL;
-
   // addr = validate_memory_access(access, size);
   // printf("address is : %p\n",addr);
-  
+
   // int32_t first_bytes = shadow_block_offset + size;
   // if (first_bytes > 8)
   //   first_bytes = 8;
@@ -272,15 +277,6 @@ void _softboundcets_bound_check(void *base, void *bound, void *access)
   //   addr = &shadow_addr[i];
   //   // report_error(access, size, &shadow_addr[i]);
   // }
-  if(OOB){
-      validate_memory_access(access,size);
-      printf("****Out-of-Bound detected****\n");
-      print_memory_dump(access, base, bound);
-  }
-  else{
-    validate_memory_access(access,size);
-  }
-
 }
 void _softboundcets_print_metadata(void *base, void *bound)
 {

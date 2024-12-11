@@ -149,112 +149,178 @@ define dso_local i32 @main() #0 !dbg !36 {
   %mtmp4 = getelementptr i8*, i8** %3, i32 1
   %mtmp4.voidptr = bitcast i8** %mtmp4 to i8*
   %4 = alloca %struct.teststruct*, align 8
-  %.voidptr5 = bitcast %struct.teststruct** %4 to i8*, !dbg !39
-  %mtmp6 = getelementptr %struct.teststruct*, %struct.teststruct** %4, i32 1, !dbg !39
-  %mtmp6.voidptr = bitcast %struct.teststruct** %mtmp6 to i8*, !dbg !39
+  %.voidptr5 = bitcast %struct.teststruct** %4 to i8*
+  %mtmp6 = getelementptr %struct.teststruct*, %struct.teststruct** %4, i32 1
+  %mtmp6.voidptr = bitcast %struct.teststruct** %mtmp6 to i8*
+  %5 = alloca i32*, align 8
+  %.voidptr7 = bitcast i32** %5 to i8*, !dbg !39
+  %mtmp8 = getelementptr i32*, i32** %5, i32 1, !dbg !39
+  %mtmp8.voidptr = bitcast i32** %mtmp8 to i8*, !dbg !39
   call void @llvm.dbg.declare(metadata [10 x i32]* %1, metadata !40, metadata !DIExpression()), !dbg !39
   call void @llvm.dbg.declare(metadata [8 x i32]* %2, metadata !44, metadata !DIExpression()), !dbg !48
   call void @llvm.dbg.declare(metadata i8** %3, metadata !49, metadata !DIExpression()), !dbg !50
-  %5 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 0, !dbg !51
-  %6 = bitcast i32* %5 to i8*, !dbg !51
-  store i8* %6, i8** %3, align 8, !dbg !50
-  %.voidptr34 = bitcast i8** %3 to i8*, !dbg !52
-  %.voidptr7 = bitcast i8** %3 to i8*, !dbg !52
-  call void @_softboundcets_set_metadata(i8* %.voidptr7, i8* %.voidptr, i8* %mtmp.voidptr), !dbg !52
-  %.voidptr8 = bitcast i8** %3 to i8*, !dbg !52
-  %7 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr8), !dbg !52
-  %baseptr = getelementptr inbounds %struct.Metadata, %struct.Metadata* %7, i32 0, i32 0, !dbg !52
+  %6 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 0, !dbg !51
+  %7 = bitcast i32* %6 to i8*, !dbg !51
+  store i8* %7, i8** %3, align 8, !dbg !50
+  %.voidptr54 = bitcast i8** %3 to i8*, !dbg !52
+  %.voidptr9 = bitcast i8** %3 to i8*, !dbg !52
+  call void @_softboundcets_set_metadata(i8* %.voidptr9, i8* %.voidptr, i8* %mtmp.voidptr), !dbg !52
+  %.voidptr10 = bitcast i8** %3 to i8*, !dbg !52
+  %8 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr10), !dbg !52
+  %baseptr = getelementptr inbounds %struct.Metadata, %struct.Metadata* %8, i32 0, i32 0, !dbg !52
   %base = load i8*, i8** %baseptr, align 8, !dbg !52
   %baseptr.voidptr = bitcast i8** %baseptr to i8*, !dbg !52
   call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr.voidptr), !dbg !52
-  %boundptr = getelementptr inbounds %struct.Metadata, %struct.Metadata* %7, i32 0, i32 1, !dbg !52
-  %base9 = load i8*, i8** %boundptr, align 8, !dbg !52
+  %boundptr = getelementptr inbounds %struct.Metadata, %struct.Metadata* %8, i32 0, i32 1, !dbg !52
+  %base11 = load i8*, i8** %boundptr, align 8, !dbg !52
   %boundptr.voidptr = bitcast i8** %boundptr to i8*, !dbg !52
   call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr.voidptr), !dbg !52
-  %8 = load i8*, i8** %3, align 8, !dbg !52
-  %.voidptr35 = bitcast i8** %3 to i8*, !dbg !53
-  call void @_softboundcets_bound_check(i8* %.voidptr3, i8* %mtmp4.voidptr, i8* %.voidptr35), !dbg !53
-  %9 = bitcast i8* %8 to i32*, !dbg !53
-  %10 = getelementptr inbounds i32, i32* %9, i64 11, !dbg !54
-  store i32 1, i32* %10, align 4, !dbg !55
-  %.voidptr36 = bitcast i32* %10 to i8*, !dbg !56
-  call void @_softboundcets_bound_check(i8* %base, i8* %base9, i8* %.voidptr36), !dbg !56
-  %.voidptr10 = bitcast i32* %10 to i8*, !dbg !56
+  %9 = load i8*, i8** %3, align 8, !dbg !52
+  %.voidptr55 = bitcast i8** %3 to i8*, !dbg !53
+  call void @_softboundcets_bound_check(i8* %.voidptr3, i8* %mtmp4.voidptr, i8* %.voidptr55), !dbg !53
+  %10 = bitcast i8* %9 to i32*, !dbg !53
+  %11 = getelementptr inbounds i32, i32* %10, i64 11, !dbg !54
+  store i32 1, i32* %11, align 4, !dbg !55
+  %.voidptr56 = bitcast i32* %11 to i8*, !dbg !56
+  call void @_softboundcets_bound_check(i8* %base, i8* %base11, i8* %.voidptr56), !dbg !56
+  %.voidptr12 = bitcast i32* %11 to i8*, !dbg !56
   call void @llvm.dbg.declare(metadata %struct.teststruct** %4, metadata !57, metadata !DIExpression()), !dbg !56
   call void @__softboundcets_allocate_shadow_stack_space(i64 1)
-  %11 = call noalias i8* @_softboundcets_malloc(i64 noundef 12) #3, !dbg !58
+  %12 = call noalias i8* @_softboundcets_malloc(i64 noundef 12) #3, !dbg !58
   %shadow_stack_metadata_ptr = call %struct.Metadata* @__softboundcets_shadow_stack_metadata_ptr(i64 0), !dbg !59
-  %baseptr11 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %shadow_stack_metadata_ptr, i32 0, i32 0, !dbg !59
-  %baseptr11.voidptr = bitcast i8** %baseptr11 to i8*, !dbg !59
-  %12 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %baseptr11.voidptr), !dbg !59
-  %baseptr14 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %12, i32 0, i32 0, !dbg !59
-  %base15 = load i8*, i8** %baseptr14, align 8, !dbg !59
-  %baseptr14.voidptr = bitcast i8** %baseptr14 to i8*, !dbg !59
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr14.voidptr), !dbg !59
-  %boundptr16 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %12, i32 0, i32 1, !dbg !59
-  %base17 = load i8*, i8** %boundptr16, align 8, !dbg !59
-  %boundptr16.voidptr = bitcast i8** %boundptr16 to i8*, !dbg !59
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr16.voidptr), !dbg !59
-  %base12 = load i8*, i8** %baseptr11, align 8, !dbg !59
-  %baseptr11.voidptr37 = bitcast i8** %baseptr11 to i8*, !dbg !59
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr11.voidptr37), !dbg !59
-  %boundptr13 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %shadow_stack_metadata_ptr, i32 0, i32 1, !dbg !59
-  %boundptr13.voidptr = bitcast i8** %boundptr13 to i8*, !dbg !59
-  %13 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %boundptr13.voidptr), !dbg !59
-  %baseptr18 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %13, i32 0, i32 0, !dbg !59
-  %base19 = load i8*, i8** %baseptr18, align 8, !dbg !59
-  %baseptr18.voidptr = bitcast i8** %baseptr18 to i8*, !dbg !59
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr18.voidptr), !dbg !59
-  %boundptr20 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %13, i32 0, i32 1, !dbg !59
-  %base21 = load i8*, i8** %boundptr20, align 8, !dbg !59
-  %boundptr20.voidptr = bitcast i8** %boundptr20 to i8*, !dbg !59
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr20.voidptr), !dbg !59
-  %bound = load i8*, i8** %boundptr13, align 8, !dbg !59
-  %boundptr13.voidptr38 = bitcast i8** %boundptr13 to i8*
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr13.voidptr38)
+  %baseptr13 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %shadow_stack_metadata_ptr, i32 0, i32 0, !dbg !59
+  %baseptr13.voidptr = bitcast i8** %baseptr13 to i8*, !dbg !59
+  %13 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %baseptr13.voidptr), !dbg !59
+  %baseptr16 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %13, i32 0, i32 0, !dbg !59
+  %base17 = load i8*, i8** %baseptr16, align 8, !dbg !59
+  %baseptr16.voidptr = bitcast i8** %baseptr16 to i8*, !dbg !59
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr16.voidptr), !dbg !59
+  %boundptr18 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %13, i32 0, i32 1, !dbg !59
+  %base19 = load i8*, i8** %boundptr18, align 8, !dbg !59
+  %boundptr18.voidptr = bitcast i8** %boundptr18 to i8*, !dbg !59
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr18.voidptr), !dbg !59
+  %base14 = load i8*, i8** %baseptr13, align 8, !dbg !59
+  %baseptr13.voidptr57 = bitcast i8** %baseptr13 to i8*, !dbg !59
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr13.voidptr57), !dbg !59
+  %boundptr15 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %shadow_stack_metadata_ptr, i32 0, i32 1, !dbg !59
+  %boundptr15.voidptr = bitcast i8** %boundptr15 to i8*, !dbg !59
+  %14 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %boundptr15.voidptr), !dbg !59
+  %baseptr20 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %14, i32 0, i32 0, !dbg !59
+  %base21 = load i8*, i8** %baseptr20, align 8, !dbg !59
+  %baseptr20.voidptr = bitcast i8** %baseptr20 to i8*, !dbg !59
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr20.voidptr), !dbg !59
+  %boundptr22 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %14, i32 0, i32 1, !dbg !59
+  %base23 = load i8*, i8** %boundptr22, align 8, !dbg !59
+  %boundptr22.voidptr = bitcast i8** %boundptr22 to i8*, !dbg !59
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr22.voidptr), !dbg !59
+  %bound = load i8*, i8** %boundptr15, align 8, !dbg !59
+  %boundptr15.voidptr58 = bitcast i8** %boundptr15 to i8*
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr15.voidptr58)
   call void @__softboundcets_deallocate_shadow_stack_space()
-  %14 = bitcast i8* %11 to %struct.teststruct*, !dbg !59
-  store %struct.teststruct* %14, %struct.teststruct** %4, align 8, !dbg !56
-  %.voidptr39 = bitcast %struct.teststruct** %4 to i8*, !dbg !60
-  %.voidptr22 = bitcast %struct.teststruct** %4 to i8*, !dbg !60
-  call void @_softboundcets_set_metadata(i8* %.voidptr22, i8* %base12, i8* %bound), !dbg !60
-  %.voidptr23 = bitcast %struct.teststruct** %4 to i8*, !dbg !60
-  %15 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr23), !dbg !60
-  %baseptr24 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %15, i32 0, i32 0, !dbg !60
-  %base25 = load i8*, i8** %baseptr24, align 8, !dbg !60
-  %baseptr24.voidptr = bitcast i8** %baseptr24 to i8*, !dbg !60
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr24.voidptr), !dbg !60
-  %boundptr26 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %15, i32 0, i32 1, !dbg !60
-  %base27 = load i8*, i8** %boundptr26, align 8, !dbg !60
-  %boundptr26.voidptr = bitcast i8** %boundptr26 to i8*, !dbg !60
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr26.voidptr), !dbg !60
-  %16 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !60
-  %.voidptr40 = bitcast %struct.teststruct** %4 to i8*, !dbg !60
-  call void @_softboundcets_bound_check(i8* %.voidptr5, i8* %mtmp6.voidptr, i8* %.voidptr40), !dbg !60
-  %17 = bitcast %struct.teststruct* %16 to i8*, !dbg !60
+  %15 = bitcast i8* %12 to %struct.teststruct*, !dbg !59
+  store %struct.teststruct* %15, %struct.teststruct** %4, align 8, !dbg !56
+  %.voidptr59 = bitcast %struct.teststruct** %4 to i8*, !dbg !60
+  %.voidptr24 = bitcast %struct.teststruct** %4 to i8*, !dbg !60
+  call void @_softboundcets_set_metadata(i8* %.voidptr24, i8* %base14, i8* %bound), !dbg !60
+  %.voidptr25 = bitcast %struct.teststruct** %4 to i8*, !dbg !60
+  %16 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr25), !dbg !60
+  %baseptr26 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %16, i32 0, i32 0, !dbg !60
+  %base27 = load i8*, i8** %baseptr26, align 8, !dbg !60
+  %baseptr26.voidptr = bitcast i8** %baseptr26 to i8*, !dbg !60
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr26.voidptr), !dbg !60
+  %boundptr28 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %16, i32 0, i32 1, !dbg !60
+  %base29 = load i8*, i8** %boundptr28, align 8, !dbg !60
+  %boundptr28.voidptr = bitcast i8** %boundptr28 to i8*, !dbg !60
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr28.voidptr), !dbg !60
+  %17 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !60
+  %.voidptr60 = bitcast %struct.teststruct** %4 to i8*, !dbg !61
+  call void @_softboundcets_bound_check(i8* %.voidptr5, i8* %mtmp6.voidptr, i8* %.voidptr60), !dbg !61
+  %18 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %17, i32 0, i32 0, !dbg !61
+  store i32 1, i32* %18, align 4, !dbg !62
+  %.voidptr61 = bitcast i32* %18 to i8*, !dbg !63
+  call void @_softboundcets_bound_check(i8* %base27, i8* %base29, i8* %.voidptr61), !dbg !63
+  %.voidptr30 = bitcast i32* %18 to i8*, !dbg !63
+  %19 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 0, !dbg !63
+  %20 = getelementptr inbounds [8 x i32], [8 x i32]* %2, i64 0, i64 0, !dbg !64
+  call void @__softboundcets_allocate_shadow_stack_space(i64 2)
+  call void @__softboundcets_store_metadata_shadow_stack(i8* %.voidptr, i8* %mtmp.voidptr, i64 0), !dbg !65
+  call void @__softboundcets_store_metadata_shadow_stack(i8* %.voidptr1, i8* %mtmp2.voidptr, i64 1), !dbg !65
+  call void @func(i32* noundef %19, i32* noundef %20), !dbg !65
+  call void @__softboundcets_deallocate_shadow_stack_space()
+  %.voidptr31 = bitcast %struct.teststruct** %4 to i8*, !dbg !66
+  %21 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr31), !dbg !66
+  %baseptr32 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %21, i32 0, i32 0, !dbg !66
+  %base33 = load i8*, i8** %baseptr32, align 8, !dbg !66
+  %baseptr32.voidptr = bitcast i8** %baseptr32 to i8*, !dbg !66
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr32.voidptr), !dbg !66
+  %boundptr34 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %21, i32 0, i32 1, !dbg !66
+  %base35 = load i8*, i8** %boundptr34, align 8, !dbg !66
+  %boundptr34.voidptr = bitcast i8** %boundptr34 to i8*, !dbg !66
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr34.voidptr), !dbg !66
+  %22 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !66
+  %.voidptr62 = bitcast %struct.teststruct** %4 to i8*, !dbg !66
+  call void @_softboundcets_bound_check(i8* %.voidptr5, i8* %mtmp6.voidptr, i8* %.voidptr62), !dbg !66
+  %23 = bitcast %struct.teststruct* %22 to i8*, !dbg !66
   call void @__softboundcets_allocate_shadow_stack_space(i64 1)
-  call void @__softboundcets_store_metadata_shadow_stack(i8* %base25, i8* %base27, i64 0), !dbg !61
-  call void @_softboundcets_free(i8* noundef %17) #3, !dbg !61
+  call void @__softboundcets_store_metadata_shadow_stack(i8* %base33, i8* %base35, i64 0), !dbg !67
+  call void @_softboundcets_free(i8* noundef %23) #3, !dbg !67
   call void @__softboundcets_deallocate_shadow_stack_space()
-  %.voidptr28 = bitcast %struct.teststruct** %4 to i8*, !dbg !62
-  %18 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr28), !dbg !62
-  %baseptr29 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %18, i32 0, i32 0, !dbg !62
-  %base30 = load i8*, i8** %baseptr29, align 8, !dbg !62
-  %baseptr29.voidptr = bitcast i8** %baseptr29 to i8*, !dbg !62
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr29.voidptr), !dbg !62
-  %boundptr31 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %18, i32 0, i32 1, !dbg !62
-  %base32 = load i8*, i8** %boundptr31, align 8, !dbg !62
-  %boundptr31.voidptr = bitcast i8** %boundptr31 to i8*, !dbg !62
-  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr31.voidptr), !dbg !62
-  %19 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !62
-  %.voidptr41 = bitcast %struct.teststruct** %4 to i8*, !dbg !63
-  call void @_softboundcets_bound_check(i8* %.voidptr5, i8* %mtmp6.voidptr, i8* %.voidptr41), !dbg !63
-  %20 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %19, i32 0, i32 0, !dbg !63
-  store i32 2, i32* %20, align 4, !dbg !64
-  %.voidptr42 = bitcast i32* %20 to i8*, !dbg !65
-  call void @_softboundcets_bound_check(i8* %base30, i8* %base32, i8* %.voidptr42), !dbg !65
-  %.voidptr33 = bitcast i32* %20 to i8*, !dbg !65
-  ret i32 0, !dbg !65
+  %.voidptr36 = bitcast %struct.teststruct** %4 to i8*, !dbg !68
+  %24 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr36), !dbg !68
+  %baseptr37 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %24, i32 0, i32 0, !dbg !68
+  %base38 = load i8*, i8** %baseptr37, align 8, !dbg !68
+  %baseptr37.voidptr = bitcast i8** %baseptr37 to i8*, !dbg !68
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr37.voidptr), !dbg !68
+  %boundptr39 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %24, i32 0, i32 1, !dbg !68
+  %base40 = load i8*, i8** %boundptr39, align 8, !dbg !68
+  %boundptr39.voidptr = bitcast i8** %boundptr39 to i8*, !dbg !68
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr39.voidptr), !dbg !68
+  %25 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !68
+  %.voidptr63 = bitcast %struct.teststruct** %4 to i8*, !dbg !69
+  call void @_softboundcets_bound_check(i8* %.voidptr5, i8* %mtmp6.voidptr, i8* %.voidptr63), !dbg !69
+  %26 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %25, i32 0, i32 0, !dbg !69
+  store i32 2, i32* %26, align 4, !dbg !70
+  %.voidptr64 = bitcast i32* %26 to i8*, !dbg !71
+  call void @_softboundcets_bound_check(i8* %base38, i8* %base40, i8* %.voidptr64), !dbg !71
+  %.voidptr41 = bitcast i32* %26 to i8*, !dbg !71
+  call void @llvm.dbg.declare(metadata i32** %5, metadata !72, metadata !DIExpression()), !dbg !71
+  %.voidptr42 = bitcast %struct.teststruct** %4 to i8*, !dbg !73
+  %27 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr42), !dbg !73
+  %baseptr43 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %27, i32 0, i32 0, !dbg !73
+  %base44 = load i8*, i8** %baseptr43, align 8, !dbg !73
+  %baseptr43.voidptr = bitcast i8** %baseptr43 to i8*, !dbg !73
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr43.voidptr), !dbg !73
+  %boundptr45 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %27, i32 0, i32 1, !dbg !73
+  %base46 = load i8*, i8** %boundptr45, align 8, !dbg !73
+  %boundptr45.voidptr = bitcast i8** %boundptr45 to i8*, !dbg !73
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr45.voidptr), !dbg !73
+  %28 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !73
+  %.voidptr65 = bitcast %struct.teststruct** %4 to i8*, !dbg !74
+  call void @_softboundcets_bound_check(i8* %.voidptr5, i8* %mtmp6.voidptr, i8* %.voidptr65), !dbg !74
+  %29 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %28, i64 1, !dbg !74
+  %30 = bitcast %struct.teststruct* %29 to i32*, !dbg !75
+  store i32* %30, i32** %5, align 8, !dbg !71
+  %.voidptr66 = bitcast i32** %5 to i8*, !dbg !76
+  %.voidptr47 = bitcast i32** %5 to i8*, !dbg !76
+  call void @_softboundcets_set_metadata(i8* %.voidptr47, i8* %base44, i8* %base46), !dbg !76
+  %.voidptr48 = bitcast i32** %5 to i8*, !dbg !76
+  %31 = call %struct.Metadata* @__softboundcets_shadowspace_metadata_ptr(i8* %.voidptr48), !dbg !76
+  %baseptr49 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %31, i32 0, i32 0, !dbg !76
+  %base50 = load i8*, i8** %baseptr49, align 8, !dbg !76
+  %baseptr49.voidptr = bitcast i8** %baseptr49 to i8*, !dbg !76
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %baseptr49.voidptr), !dbg !76
+  %boundptr51 = getelementptr inbounds %struct.Metadata, %struct.Metadata* %31, i32 0, i32 1, !dbg !76
+  %base52 = load i8*, i8** %boundptr51, align 8, !dbg !76
+  %boundptr51.voidptr = bitcast i8** %boundptr51 to i8*, !dbg !76
+  call void @_softboundcets_bound_check(i8* null, i8* inttoptr (i64 1302123111085380114 to i8*), i8* %boundptr51.voidptr), !dbg !76
+  %32 = load i32*, i32** %5, align 8, !dbg !76
+  %.voidptr67 = bitcast i32** %5 to i8*, !dbg !77
+  call void @_softboundcets_bound_check(i8* %.voidptr7, i8* %mtmp8.voidptr, i8* %.voidptr67), !dbg !77
+  store i32 -559038737, i32* %32, align 4, !dbg !77
+  %.voidptr68 = bitcast i32* %32 to i8*, !dbg !78
+  call void @_softboundcets_bound_check(i8* %base50, i8* %base52, i8* %.voidptr68), !dbg !78
+  %.voidptr53 = bitcast i32* %32 to i8*, !dbg !78
+  ret i32 0, !dbg !78
 }
 
 ; Function Attrs: nounwind
@@ -312,7 +378,7 @@ attributes #3 = { nounwind }
 !llvm.ident = !{!18}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "Ubuntu clang version 14.0.0-1ubuntu1.1", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !2, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "9e83ae95a9ca5bee6d7a720815694abb")
+!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "63c103f6fd3ce33931021c6b08a09110")
 !2 = !{!3, !5}
 !3 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !4, size: 64)
 !4 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
@@ -371,9 +437,22 @@ attributes #3 = { nounwind }
 !57 = !DILocalVariable(name: "node", scope: !36, file: !1, line: 23, type: !5)
 !58 = !DILocation(line: 23, column: 49, scope: !36)
 !59 = !DILocation(line: 23, column: 28, scope: !36)
-!60 = !DILocation(line: 26, column: 7, scope: !36)
-!61 = !DILocation(line: 26, column: 2, scope: !36)
-!62 = !DILocation(line: 27, column: 2, scope: !36)
-!63 = !DILocation(line: 27, column: 8, scope: !36)
-!64 = !DILocation(line: 27, column: 15, scope: !36)
-!65 = !DILocation(line: 31, column: 1, scope: !36)
+!60 = !DILocation(line: 24, column: 2, scope: !36)
+!61 = !DILocation(line: 24, column: 8, scope: !36)
+!62 = !DILocation(line: 24, column: 15, scope: !36)
+!63 = !DILocation(line: 25, column: 7, scope: !36)
+!64 = !DILocation(line: 25, column: 12, scope: !36)
+!65 = !DILocation(line: 25, column: 2, scope: !36)
+!66 = !DILocation(line: 26, column: 7, scope: !36)
+!67 = !DILocation(line: 26, column: 2, scope: !36)
+!68 = !DILocation(line: 27, column: 2, scope: !36)
+!69 = !DILocation(line: 27, column: 8, scope: !36)
+!70 = !DILocation(line: 27, column: 15, scope: !36)
+!71 = !DILocation(line: 28, column: 7, scope: !36)
+!72 = !DILocalVariable(name: "out_of_bound_access", scope: !36, file: !1, line: 28, type: !3)
+!73 = !DILocation(line: 28, column: 37, scope: !36)
+!74 = !DILocation(line: 28, column: 42, scope: !36)
+!75 = !DILocation(line: 28, column: 29, scope: !36)
+!76 = !DILocation(line: 29, column: 3, scope: !36)
+!77 = !DILocation(line: 29, column: 23, scope: !36)
+!78 = !DILocation(line: 31, column: 1, scope: !36)

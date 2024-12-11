@@ -34,27 +34,41 @@ define dso_local i32 @main() #0 !dbg !36 {
   %2 = alloca [8 x i32], align 16
   %3 = alloca i8*, align 8
   %4 = alloca %struct.teststruct*, align 8
+  %5 = alloca i32*, align 8
   call void @llvm.dbg.declare(metadata [10 x i32]* %1, metadata !39, metadata !DIExpression()), !dbg !43
   call void @llvm.dbg.declare(metadata [8 x i32]* %2, metadata !44, metadata !DIExpression()), !dbg !48
   call void @llvm.dbg.declare(metadata i8** %3, metadata !49, metadata !DIExpression()), !dbg !50
-  %5 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 0, !dbg !51
-  %6 = bitcast i32* %5 to i8*, !dbg !51
-  store i8* %6, i8** %3, align 8, !dbg !50
-  %7 = load i8*, i8** %3, align 8, !dbg !52
-  %8 = bitcast i8* %7 to i32*, !dbg !53
-  %9 = getelementptr inbounds i32, i32* %8, i64 11, !dbg !54
-  store i32 1, i32* %9, align 4, !dbg !55
+  %6 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 0, !dbg !51
+  %7 = bitcast i32* %6 to i8*, !dbg !51
+  store i8* %7, i8** %3, align 8, !dbg !50
+  %8 = load i8*, i8** %3, align 8, !dbg !52
+  %9 = bitcast i8* %8 to i32*, !dbg !53
+  %10 = getelementptr inbounds i32, i32* %9, i64 11, !dbg !54
+  store i32 1, i32* %10, align 4, !dbg !55
   call void @llvm.dbg.declare(metadata %struct.teststruct** %4, metadata !56, metadata !DIExpression()), !dbg !57
-  %10 = call noalias i8* @malloc(i64 noundef 12) #3, !dbg !58
-  %11 = bitcast i8* %10 to %struct.teststruct*, !dbg !59
-  store %struct.teststruct* %11, %struct.teststruct** %4, align 8, !dbg !57
-  %12 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !60
-  %13 = bitcast %struct.teststruct* %12 to i8*, !dbg !60
-  call void @free(i8* noundef %13) #3, !dbg !61
-  %14 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !62
-  %15 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %14, i32 0, i32 0, !dbg !63
-  store i32 2, i32* %15, align 4, !dbg !64
-  ret i32 0, !dbg !65
+  %11 = call noalias i8* @malloc(i64 noundef 12) #3, !dbg !58
+  %12 = bitcast i8* %11 to %struct.teststruct*, !dbg !59
+  store %struct.teststruct* %12, %struct.teststruct** %4, align 8, !dbg !57
+  %13 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !60
+  %14 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %13, i32 0, i32 0, !dbg !61
+  store i32 1, i32* %14, align 4, !dbg !62
+  %15 = getelementptr inbounds [10 x i32], [10 x i32]* %1, i64 0, i64 0, !dbg !63
+  %16 = getelementptr inbounds [8 x i32], [8 x i32]* %2, i64 0, i64 0, !dbg !64
+  call void @func(i32* noundef %15, i32* noundef %16), !dbg !65
+  %17 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !66
+  %18 = bitcast %struct.teststruct* %17 to i8*, !dbg !66
+  call void @free(i8* noundef %18) #3, !dbg !67
+  %19 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !68
+  %20 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %19, i32 0, i32 0, !dbg !69
+  store i32 2, i32* %20, align 4, !dbg !70
+  call void @llvm.dbg.declare(metadata i32** %5, metadata !71, metadata !DIExpression()), !dbg !72
+  %21 = load %struct.teststruct*, %struct.teststruct** %4, align 8, !dbg !73
+  %22 = getelementptr inbounds %struct.teststruct, %struct.teststruct* %21, i64 1, !dbg !74
+  %23 = bitcast %struct.teststruct* %22 to i32*, !dbg !75
+  store i32* %23, i32** %5, align 8, !dbg !72
+  %24 = load i32*, i32** %5, align 8, !dbg !76
+  store i32 -559038737, i32* %24, align 4, !dbg !77
+  ret i32 0, !dbg !78
 }
 
 ; Function Attrs: nounwind
@@ -73,7 +87,7 @@ attributes #3 = { nounwind }
 !llvm.ident = !{!18}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "Ubuntu clang version 14.0.0-1ubuntu1.1", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !2, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "9e83ae95a9ca5bee6d7a720815694abb")
+!1 = !DIFile(filename: "test.c", directory: "/home/test/metadata-temp", checksumkind: CSK_MD5, checksum: "63c103f6fd3ce33931021c6b08a09110")
 !2 = !{!3, !5}
 !3 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !4, size: 64)
 !4 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
@@ -132,9 +146,22 @@ attributes #3 = { nounwind }
 !57 = !DILocation(line: 23, column: 21, scope: !36)
 !58 = !DILocation(line: 23, column: 49, scope: !36)
 !59 = !DILocation(line: 23, column: 28, scope: !36)
-!60 = !DILocation(line: 26, column: 7, scope: !36)
-!61 = !DILocation(line: 26, column: 2, scope: !36)
-!62 = !DILocation(line: 27, column: 2, scope: !36)
-!63 = !DILocation(line: 27, column: 8, scope: !36)
-!64 = !DILocation(line: 27, column: 15, scope: !36)
-!65 = !DILocation(line: 31, column: 1, scope: !36)
+!60 = !DILocation(line: 24, column: 2, scope: !36)
+!61 = !DILocation(line: 24, column: 8, scope: !36)
+!62 = !DILocation(line: 24, column: 15, scope: !36)
+!63 = !DILocation(line: 25, column: 7, scope: !36)
+!64 = !DILocation(line: 25, column: 12, scope: !36)
+!65 = !DILocation(line: 25, column: 2, scope: !36)
+!66 = !DILocation(line: 26, column: 7, scope: !36)
+!67 = !DILocation(line: 26, column: 2, scope: !36)
+!68 = !DILocation(line: 27, column: 2, scope: !36)
+!69 = !DILocation(line: 27, column: 8, scope: !36)
+!70 = !DILocation(line: 27, column: 15, scope: !36)
+!71 = !DILocalVariable(name: "out_of_bound_access", scope: !36, file: !1, line: 28, type: !3)
+!72 = !DILocation(line: 28, column: 7, scope: !36)
+!73 = !DILocation(line: 28, column: 37, scope: !36)
+!74 = !DILocation(line: 28, column: 42, scope: !36)
+!75 = !DILocation(line: 28, column: 29, scope: !36)
+!76 = !DILocation(line: 29, column: 3, scope: !36)
+!77 = !DILocation(line: 29, column: 23, scope: !36)
+!78 = !DILocation(line: 31, column: 1, scope: !36)

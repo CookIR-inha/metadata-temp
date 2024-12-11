@@ -16,6 +16,8 @@
 //섀도우 메모리 할당(초기에 호출되어야 함)
 // called in llvm pass
 void _ASan_init() {
+    void* local; 
+    stack_addr = (void *)(((uintptr_t)&local) & 0xffffffff00000000);
     printf("ASan init called\n");
     void* addr = mmap(
         shadow_memory,
@@ -310,6 +312,8 @@ void report_error(void* start_addr, size_t size, int8_t* faulty_shadow_addr) {
     // _exit(1);
 }
 
+
+
 /*
 인코딩 정의
 섀도우 바이트의 값 k
@@ -317,9 +321,9 @@ k = 0이면 할당되지 않은 영역(접근 불가)
 1 <= k <= 8이면 첫 k바이트만 접근 가능(8이면 8바이트 전체 접근 가능)
 k = -1이면 해제된 영역(접근 불가)
 */
-
 //메모리 접근을 검증(메모리 접근 명령어 앞에 삽입되어야 하는 함수)
 void validate_memory_access(void* addr, int32_t size) {
+    printf("stack addr is : %p, access is : %p\n",stack_addr,addr);
     printf("in validate_memory_access addr : %p, size : %d\n",addr, size);
     int8_t* shadow_addr = get_shadow_address(addr);
     size_t shadow_block_offset = get_shadow_block_offset(addr);
