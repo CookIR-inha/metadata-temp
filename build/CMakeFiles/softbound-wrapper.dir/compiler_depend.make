@@ -62,7 +62,8 @@ CMakeFiles/softbound-wrapper.dir/softbound-wrapper.c.o: ../softbound-wrapper.c \
   /usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h \
   /usr/include/stdint.h \
   /usr/include/x86_64-linux-gnu/bits/wchar.h \
-  /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h
+  /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+  ../shadow_memory.h
 
 
 /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h:
@@ -92,6 +93,8 @@ CMakeFiles/softbound-wrapper.dir/softbound-wrapper.c.o: ../softbound-wrapper.c \
 /usr/include/stdc-predef.h:
 
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
+
+../shadow_memory.h:
 
 /usr/include/x86_64-linux-gnu/bits/floatn-common.h:
 

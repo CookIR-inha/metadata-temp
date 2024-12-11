@@ -69,8 +69,9 @@ include CMakeFiles/output_binary.dir/progress.make
 CMakeFiles/output_binary: output.ll
 CMakeFiles/output_binary: libsoftbound.so
 CMakeFiles/output_binary: libsoftbound-wrapper.so
+CMakeFiles/output_binary: libshadow_memory.so
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/test/metadata-temp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Linking output.ll to create output_binary"
-	clang /home/test/metadata-temp/build/output.ll -o /home/test/metadata-temp/build/output_binary -L. -lsoftbound -lsoftbound-wrapper -lm -Wl,-rpath,.
+	clang /home/test/metadata-temp/build/output.ll -o /home/test/metadata-temp/build/output_binary -L. -lsoftbound-wrapper -lsoftbound -lshadow_memory -lm -Wl,-rpath,.
 
 output.ll: test.ll
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/test/metadata-temp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Applying LLVM Pass Plugin with debugging to test.ll to generate output.ll"

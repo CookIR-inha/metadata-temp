@@ -53,11 +53,16 @@ add_library(softbound-wrapper SHARED softbound-wrapper.c)
 target_compile_options(softbound-wrapper PRIVATE -fPIC)
 set_target_properties(softbound-wrapper PROPERTIES OUTPUT_NAME "softbound-wrapper")
 
+## 추가된 라이브러리
+add_library(shadow_memory SHARED shadow_memory.c)
+target_compile_options(shadow_memory PRIVATE -fPIC)
+set_target_properties(shadow_memory PROPERTIES OUTPUT_NAME "shadow_memory")
+
 # 7. output_binary 생성 명령
 add_custom_target(
     output_binary ALL
-    COMMAND clang ${CMAKE_BINARY_DIR}/output.ll -o ${CMAKE_BINARY_DIR}/output_binary -L. -lsoftbound -lsoftbound-wrapper -lm -Wl,-rpath,.
-    DEPENDS ${CMAKE_BINARY_DIR}/output.ll softbound softbound-wrapper
+    COMMAND clang ${CMAKE_BINARY_DIR}/output.ll -o ${CMAKE_BINARY_DIR}/output_binary -L. -lsoftbound-wrapper -lsoftbound -lshadow_memory -lm -Wl,-rpath,.
+    DEPENDS ${CMAKE_BINARY_DIR}/output.ll softbound softbound-wrapper shadow_memory
     COMMENT "Linking output.ll to create output_binary"
 )
 

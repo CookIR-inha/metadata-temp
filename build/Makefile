@@ -253,6 +253,19 @@ softbound-wrapper/fast:
 .PHONY : softbound-wrapper/fast
 
 #=============================================================================
+# Target rules for targets named shadow_memory
+
+# Build rule for target.
+shadow_memory: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 shadow_memory
+.PHONY : shadow_memory
+
+# fast build rule for target.
+shadow_memory/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shadow_memory.dir/build.make CMakeFiles/shadow_memory.dir/build
+.PHONY : shadow_memory/fast
+
+#=============================================================================
 # Target rules for targets named output_binary
 
 # Build rule for target.
@@ -288,6 +301,30 @@ SoftBoundPass.s: SoftBoundPass.cpp.s
 SoftBoundPass.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/SoftBoundPass.dir/build.make CMakeFiles/SoftBoundPass.dir/SoftBoundPass.cpp.s
 .PHONY : SoftBoundPass.cpp.s
+
+shadow_memory.o: shadow_memory.c.o
+.PHONY : shadow_memory.o
+
+# target to build an object file
+shadow_memory.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shadow_memory.dir/build.make CMakeFiles/shadow_memory.dir/shadow_memory.c.o
+.PHONY : shadow_memory.c.o
+
+shadow_memory.i: shadow_memory.c.i
+.PHONY : shadow_memory.i
+
+# target to preprocess a source file
+shadow_memory.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shadow_memory.dir/build.make CMakeFiles/shadow_memory.dir/shadow_memory.c.i
+.PHONY : shadow_memory.c.i
+
+shadow_memory.s: shadow_memory.c.s
+.PHONY : shadow_memory.s
+
+# target to generate assembly for a file
+shadow_memory.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/shadow_memory.dir/build.make CMakeFiles/shadow_memory.dir/shadow_memory.c.s
+.PHONY : shadow_memory.c.s
 
 softbound-wrapper.o: softbound-wrapper.c.o
 .PHONY : softbound-wrapper.o
@@ -355,11 +392,15 @@ help:
 	@echo "... omp_gen"
 	@echo "... output_binary"
 	@echo "... SoftBoundPass"
+	@echo "... shadow_memory"
 	@echo "... softbound"
 	@echo "... softbound-wrapper"
 	@echo "... SoftBoundPass.o"
 	@echo "... SoftBoundPass.i"
 	@echo "... SoftBoundPass.s"
+	@echo "... shadow_memory.o"
+	@echo "... shadow_memory.i"
+	@echo "... shadow_memory.s"
 	@echo "... softbound-wrapper.o"
 	@echo "... softbound-wrapper.i"
 	@echo "... softbound-wrapper.s"

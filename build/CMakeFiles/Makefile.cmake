@@ -66,5 +66,6 @@ set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/GenerateIR.dir/DependInfo.cmake"
   "CMakeFiles/softbound.dir/DependInfo.cmake"
   "CMakeFiles/softbound-wrapper.dir/DependInfo.cmake"
+  "CMakeFiles/shadow_memory.dir/DependInfo.cmake"
   "CMakeFiles/output_binary.dir/DependInfo.cmake"
   )

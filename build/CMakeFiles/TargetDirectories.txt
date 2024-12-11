@@ -5,6 +5,7 @@
 /home/test/metadata-temp/build/CMakeFiles/GenerateIR.dir
 /home/test/metadata-temp/build/CMakeFiles/softbound.dir
 /home/test/metadata-temp/build/CMakeFiles/softbound-wrapper.dir
+/home/test/metadata-temp/build/CMakeFiles/shadow_memory.dir
 /home/test/metadata-temp/build/CMakeFiles/output_binary.dir
 /home/test/metadata-temp/build/CMakeFiles/edit_cache.dir
 /home/test/metadata-temp/build/CMakeFiles/rebuild_cache.dir

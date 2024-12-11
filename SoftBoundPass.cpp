@@ -53,6 +53,7 @@ namespace
     Type *MetadataStructPtrTy;
     bool ClAssociateZeroInitializedGlobalsWithOmnivalidMetadata;
     bool ClAssociateIntToPtrCastsWithOmnivalidMetadata;
+    bool ClAssociateVaargPointerWithOmnivalidMetadata;
 
     ConstantPointerNull *MVoidNullPtr;
     PointerType *MVoidPtrTy;
@@ -823,6 +824,51 @@ namespace
 
       return pointer_base;
     }
+    void collectVarargPointerLoads(Instruction *Root, SmallVector<LoadInst *> &LoadInsts,
+                                   std::set<Value *> &Visited)
+    {
+      if (Visited.count(Root))
+        return; // Avoid cycles
+      Visited.insert(Root);
+
+      for (auto *Usr : Root->users())
+      {
+        Instruction *I = dyn_cast<Instruction>(Usr);
+
+        if (!I || isa<CallBase>(I))
+          continue;
+        // Check if the user is a LoadInst and loads a pointer
+        if (auto *LI = dyn_cast<LoadInst>(Usr))
+        {
+          if (LI->getType()->isPointerTy())
+          {
+            LoadInsts.push_back(LI); // Collect LoadInst
+          }
+        }
+
+        // Continue the traversal for other users
+        collectVarargPointerLoads(I, LoadInsts, Visited);
+      }
+    }
+    void associateOmnivalidMetadata(Value *Val)
+    {
+      auto *ValTy = Val->getType();
+      auto Bases = createDummyMetadata<Value>(ValTy, MVoidNullPtr);
+      auto Bounds = createDummyMetadata<Value>(ValTy, MInfiniteBoundPtr);
+      associateAggregateBaseBound(Val, Bases, Bounds);
+    }
+    void varargAssociatePointerLoads(Instruction *VarArgInst)
+    {
+
+      SmallVector<LoadInst *> LoadInsts;
+      std::set<Value *> Visited;
+      collectVarargPointerLoads(VarArgInst, LoadInsts, Visited);
+
+      for (auto *LI : LoadInsts)
+      {
+        associateOmnivalidMetadata(LI);
+      }
+    }
 
     template <typename T>
     TinyPtrVector<T *> createConstantBounds(Constant *Const,
@@ -1317,6 +1363,67 @@ namespace
 
       // 새로운 GEP 명령어에 메타데이터 연결
     };
+    bool isVaargGep(GetElementPtrInst *GepInst)
+    {
+      /* (av)
+        We want to identify all getelementptr instructions that load the
+        pointer to overflow_arg_area or the reg_save_area. That is e.g.
+        %0 = getelementptr inbounds %struct.__va_list_tag, %struct.__va_list_tag*
+        %arraydecay2, i32 0, i32 3 or %overflow_arg_area_p = getelementptr inbounds
+        %struct.__va_list_tag, %struct.__va_list_tag* %arraydecay2, i32 0, i32 2 As
+        this struct could be part of another struct or array, we have to iteratively
+        follow the indices of the instruction.
+      */
+
+      // return false;
+      auto GEPIndices = GepInst->getNumIndices();
+      if (GEPIndices < 2)
+        return false;
+
+      auto *CompTy = GepInst->getSourceElementType();
+
+      auto *Idx = GepInst->idx_begin();
+
+      Value *ThirdLastIdx = NULL;
+      Value *SecondLastIdx = *Idx;
+
+      Idx++;
+
+      for (unsigned int NextIndexPos = 2; Idx != GepInst->idx_end();
+           Idx++, NextIndexPos++)
+      {
+
+        if (!CompTy)
+          return false;
+
+        // integer value of index
+        uint64_t LastIndex = dyn_cast<ConstantInt>(*Idx)
+                                 ? dyn_cast<ConstantInt>(*Idx)->getZExtValue()
+                                 : 0;
+
+        // stop if we followed all but the last two indices
+        // check if the second to last is 0 and the last is 2 or 3
+        if (NextIndexPos >= GEPIndices)
+        {
+          if (LastIndex != 2 && LastIndex != 3)
+            return false;
+          break;
+        }
+
+        ThirdLastIdx = SecondLastIdx;
+        SecondLastIdx = *Idx;
+
+        if (NextIndexPos > 1)
+        {
+          CompTy = GetElementPtrInst::getTypeAtIndex(CompTy, ThirdLastIdx);
+        }
+      }
+
+      StructType *StTy = dyn_cast_or_null<StructType>(CompTy);
+
+      return StTy && StTy->hasName() &&
+             StTy->getName().contains("struct.__va_list_tag");
+    }
 
     void handle_load(Instruction &I)
     {
@@ -1326,13 +1433,24 @@ namespace
       int typeID = LoadTy->getTypeID();
 
       Value *LoadSrc = LI->getPointerOperand();
-      Instruction *new_inst = getNextInstruction(LI);
       IRBuilder<> IRB(LI);
       Value *LoadSrcBitcast = castToVoidPtr(LoadSrc, IRB);
+      // if (!isTypeWithPointers(LoadTy))
+      // {
+      //   return;
+      // }
+      // GetElementPtrInst *GepInst =
+      //     dyn_cast<GetElementPtrInst>(LI->getPointerOperand());
+      // if (GepInst && isVaargGep(GepInst))
+      // {
+      //   associateOmnivalidMetadata(LI);
+      //   if (ClAssociateVaargPointerWithOmnivalidMetadata)
+      //     varargAssociatePointerLoads(LI);
+      // }
 
       if (isa<PointerType>(LoadTy))
       {
-        if (!MValueBaseMap.count(LI) && !MValueBoundMap.count(LI))
+        if (!(MValueBaseMap.count(LI) && MValueBoundMap.count(LI)))
         {
           errs() << "Working\n";
           auto *MetadataPtr = IRB.CreateCall(LoadMetadataPtrFn, {LoadSrcBitcast});
@@ -1353,7 +1471,6 @@ namespace
 
       Value *SrcPtr = BCI->getOperand(0); // 원본 포인터
       Value *DstPtr = &I;                 // 변환된 포인터
-      IRBuilder<> IRB(BCI->getNextNode());
 
       // 원본 포인터의 메타데이터 가져오기
       // errs() << "assoc in bitcast : " << *SrcPtr << "\n";
@@ -1547,8 +1664,14 @@ namespace
     }
     bool isFunctionNotToInstrument(const StringRef &str)
     {
+      // errs() << "function name is : " << str << "\n";
       if (str.contains("softboundcets"))
       {
+        return true;
+      }
+      if (str.find("llvm.") == 0)
+      {
+        // errs() << "not to instrumenting " << str << "\n";
         return true;
       }
       return false;
@@ -1557,7 +1680,7 @@ namespace
     {
       CallInst *CI = dyn_cast<CallInst>(&I);
       Instruction *InsertAt = getNextInstruction(CI);
-      errs() << "handling call instruction : " << *CI << "\n";
+      // errs() << "handling call instruction : " << *CI << "\n";
       if (auto *F = CI->getCalledFunction())
       {
         auto FName = F->getName();
@@ -1566,8 +1689,8 @@ namespace
         {
           if (isTypeWithPointers(CI->getType()))
           {
-            errs() << "Handling call to external uninstrumented function: "
-                   << FName << "\n";
+            // errs() << "Handling call to external uninstrumented function: "
+            //        << FName << "\n";
           }
           return;
         }
@@ -1735,9 +1858,10 @@ namespace
 
     void insert_func(Function &F)
     {
-
+      Value *base = NULL;
+      Value *bound = NULL;
       Value *value_operand = NULL;
-      Value *pointer_opeand = NULL;
+      Value *pointer_operand = NULL;
       Type *pointee_type = NULL;
       Value *access = NULL;
       IRBuilder<> *builder = NULL;
@@ -1750,35 +1874,58 @@ namespace
           if (StoreInst *SI = dyn_cast<StoreInst>(&I))
           {
             value_operand = SI->getValueOperand();
-            pointer_opeand = SI->getPointerOperand();
+            pointer_operand = SI->getPointerOperand();
+            // if (isa<ConstantPointerNull>(pointer_operand))
+            // {
+            //   errs() << "returning...\n";
+            //   return;
+            // }
             pointee_type = SI->getType();
             builder = new IRBuilder<>(SI->getNextNode());
-            access = castToVoidPtr(pointer_opeand, *builder);
+            access = castToVoidPtr(pointer_operand, *builder);
             if (!isTypeWithPointers(value_operand->getType()))
             {
-              args.push_back(getAssociatedBase(pointer_opeand));
-              args.push_back(getAssociatedBound(pointer_opeand));
+              base = getAssociatedBase(pointer_operand);
+              bound = getAssociatedBound(pointer_operand);
+              // if ((base == MVoidNullPtr) && (bound == MInfiniteBoundPtr))
+              // {
+              //   errs() << "Base is : " << *base << "bound is : " << *bound << "\n";
+              //   return;
+              // }
+              args.push_back(base);
+              args.push_back(bound);
               args.push_back(access);
               for (auto &arg : args)
               {
                 errs() << "argument of boundcheck : " << *arg << "\n";
               }
-              errs() << "inserting boundcheck\n";
+              errs() << "inserting boundcheck to " << *SI << "\n";
 
               builder->CreateCall(boundCheck, args);
             }
           }
           if (LoadInst *LI = dyn_cast<LoadInst>(&I))
           {
-            pointer_opeand = LI->getPointerOperand();
+            pointer_operand = LI->getPointerOperand();
+            // if (isa<ConstantPointerNull>(pointer_operand))
+            // {
+            //   errs() << "returning...\n";
+            //   return;
+            // }
             pointee_type = LI->getType();
             builder = new IRBuilder<>(LI->getNextNode());
-            access = castToVoidPtr(pointer_opeand, *builder);
-
-            args.push_back(getAssociatedBase(pointer_opeand));
-            args.push_back(getAssociatedBound(pointer_opeand));
+            access = castToVoidPtr(pointer_operand, *builder);
+            base = getAssociatedBase(pointer_operand);
+            bound = getAssociatedBound(pointer_operand);
+            // if ((base == MVoidNullPtr) && (bound == MInfiniteBoundPtr))
+            // {
+            //   errs() << "Base is : " << *base << "bound is : " << *bound << "\n";
+            //   return;
+            // }
+            args.push_back(base);
+            args.push_back(bound);
             args.push_back(access);
-            errs() << "inserting boundcheck\n";
+            errs() << "inserting boundcheck to " << *LI << "\n";
             builder->CreateCall(boundCheck, args);
           }
         }
@@ -1883,7 +2030,7 @@ namespace
           if (m_func_transformed.count(func_ptr->getName()) ||
               isFunctionNotToInstrument(func_ptr->getName()))
           {
-            errs() << "not to change function name : " << func_ptr->getName() << "\n";
+            // errs() << "not to change function name : " << func_ptr->getName() << "\n";
             continue;
           }
 
@@ -1923,6 +2070,7 @@ namespace
 
       ClAssociateZeroInitializedGlobalsWithOmnivalidMetadata = true;
       ClAssociateIntToPtrCastsWithOmnivalidMetadata = true;
+      ClAssociateVaargPointerWithOmnivalidMetadata = true;
       errs() << "**** DEBUG ****\n";
       setMetaData = M.getOrInsertFunction(
           "_softboundcets_set_metadata",
@@ -2017,6 +2165,7 @@ namespace
       appendToGlobalCtors(M, CtorFunc, 0, nullptr);
       for (Function &F : M)
       {
+        errs() << F.getName() << "\n";
         collect_metadata(F);
         insert_func(F);
       }

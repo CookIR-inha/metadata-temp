@@ -68,7 +68,8 @@ CMakeFiles/softbound.dir/softbound.c.o: ../softbound.c \
   /usr/include/x86_64-linux-gnu/bits/mman-map-flags-generic.h \
   /usr/include/x86_64-linux-gnu/bits/mman-linux.h \
   /usr/include/x86_64-linux-gnu/bits/mman-shared.h \
-  /usr/include/assert.h
+  /usr/include/assert.h \
+  ../shadow_memory.h
 
 
 /usr/include/assert.h:
@@ -130,6 +131,8 @@ CMakeFiles/softbound.dir/softbound.c.o: ../softbound.c \
 /usr/include/x86_64-linux-gnu/bits/mman-map-flags-generic.h:
 
 /usr/include/stdint.h:
+
+../shadow_memory.h:
 
 /usr/include/x86_64-linux-gnu/bits/floatn-common.h:
 

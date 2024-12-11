@@ -1,23 +1,22 @@
 //shadow_memory.c
 //gcc -fPIC -shared -o libshadow_memory.so shadow_memory.c
-#include "shadow_memory.h"
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include "shadow_memory.h"
 
-#define SHADOW_SCALE 3
-#define SHADOW_OFFSET 0x100000000000ULL // 2^44
-#define SHADOW_SIZE 1ULL << (47 - SHADOW_SCALE) // 2^44 bytes (16TiB)
 
-//섀도우 메모리 포인터
-static int8_t* shadow_memory = (int8_t*)SHADOW_OFFSET;
+
+
 
 //섀도우 메모리 할당(초기에 호출되어야 함)
 // called in llvm pass
 void _ASan_init() {
+    printf("ASan init called\n");
     void* addr = mmap(
         shadow_memory,
         SHADOW_SIZE,
@@ -44,22 +43,7 @@ void free_shadow_memory() {
     munmap(shadow_memory, SHADOW_SIZE);
 }
 
-//프로그램 메모리 주소 받아서 섀도우 메모리 주소 계산
-static inline int8_t* get_shadow_address(void* addr) {
-    return shadow_memory + (((uintptr_t)addr) >> SHADOW_SCALE);
-}
 
-//프로그램 메모리 주소가 섀도우 메모리 블록의 8바이트 중 몇번째에 해당하는지 리턴(0~7)
-//즉, 메모리 주소를 8로 나눈 나머지
-static inline size_t get_shadow_block_offset(void* addr) {
-    return ((uintptr_t)addr) & ((1 << SHADOW_SCALE) - 1);
-}
-
-//프로그램 메모리 크기를 섀도우 메모리 크기로 변환
-//1-8이면 1, 9-16이면 2 ...
-static inline size_t get_shadow_size(size_t size) {
-    return ((size - 1) >> SHADOW_SCALE) + 1;
-}
 
 //섀도우 메모리에 인코딩 값 '할당됨'으로 설정(1-8)
 void set_shadow_enc_alloc(void* addr, size_t size) {
@@ -323,7 +307,7 @@ void report_error(void* start_addr, size_t size, int8_t* faulty_shadow_addr) {
     fprintf(stderr, "\n=============================================================================================\n");
 
 
-    _exit(1);
+    // _exit(1);
 }
 
 /*
@@ -336,6 +320,7 @@ k = -1이면 해제된 영역(접근 불가)
 
 //메모리 접근을 검증(메모리 접근 명령어 앞에 삽입되어야 하는 함수)
 void validate_memory_access(void* addr, int32_t size) {
+    printf("in validate_memory_access addr : %p, size : %d\n",addr, size);
     int8_t* shadow_addr = get_shadow_address(addr);
     size_t shadow_block_offset = get_shadow_block_offset(addr);
     
@@ -363,6 +348,7 @@ void validate_memory_access(void* addr, int32_t size) {
     
     //접근 가능한지 확인
     if (first_bytes > shadow_addr[0]) {
+
         report_error(addr, size, shadow_addr);
     }
 
@@ -379,12 +365,14 @@ void validate_memory_access(void* addr, int32_t size) {
     size_t i = 1;
     for (; remaining_size >= 8; i++, remaining_size -= 8) {
          if (shadow_addr[i] != 8) {
+            // return shadow_addr[i];
             report_error(addr, size, &shadow_addr[i]);
         }
     }
 
     //마지막 블록에 대해 접근 가능한지 확인
     if (remaining_size > shadow_addr[i]) {
+        // return shadow_addr[i];
         report_error(addr, size, &shadow_addr[i]);
     }
 }
