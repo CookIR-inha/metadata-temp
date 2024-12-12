@@ -1343,44 +1343,44 @@ namespace
 
       // vector의 경우 아직 고려하지 않음
     };
-    void handleArrayGEP(GetElementPtrInst *GEPI, Value *&base, Value *&bound, IRBuilder<> &IRB)
-    {
-      ArrayType *ATy = cast<ArrayType>(GEPI->getPointerOperandType()->getPointerElementType());
+    // void handleArrayGEP(GetElementPtrInst *GEPI, Value *&base, Value *&bound, IRBuilder<> &IRB)
+    // {
+    //   ArrayType *ATy = cast<ArrayType>(GEPI->getPointerOperandType()->getPointerElementType());
 
-      // GEP의 인덱스 값을 가져옴
-      Value *Index = GEPI->getOperand(2); // 배열 인덱스 (i32 또는 i64)
+    //   // GEP의 인덱스 값을 가져옴
+    //   Value *Index = GEPI->getOperand(2); // 배열 인덱스 (i32 또는 i64)
 
-      // 배열 요소의 크기 계산
-      DataLayout DL(GEPI->getModule());
-      uint64_t ElementSize = DL.getTypeAllocSize(ATy->getElementType());
+    //   // 배열 요소의 크기 계산
+    //   DataLayout DL(GEPI->getModule());
+    //   uint64_t ElementSize = DL.getTypeAllocSize(ATy->getElementType());
 
-      // base와 bound를 배열 요소 수준으로 조정
-      base = IRB.CreateGEP(base, IRB.CreateMul(Index, IRB.getInt64(ElementSize)));
-      bound = IRB.CreateGEP(base, IRB.getInt64(ElementSize));
+    //   // base와 bound를 배열 요소 수준으로 조정
+    //   base = IRB.CreateGEP(base, IRB.CreateMul(Index, IRB.getInt64(ElementSize)));
+    //   bound = IRB.CreateGEP(base, IRB.getInt64(ElementSize));
 
-      // 새롭게 계산된 base와 bound를 GEP와 연관시킴
-      associateBaseBound(GEPI, base, bound);
-    }
-    void handleStructGEP(GetElementPtrInst *GEPI, Value *&base, Value *&bound, IRBuilder<> &IRB)
-    {
-      StructType *STy = cast<StructType>(GEPI->getPointerOperandType()->getPointerElementType());
-      unsigned FieldIndex = cast<ConstantInt>(GEPI->getOperand(2))->getZExtValue(); // 필드 인덱스 가져오기
+    //   // 새롭게 계산된 base와 bound를 GEP와 연관시킴
+    //   associateBaseBound(GEPI, base, bound);
+    // }
+    // void handleStructGEP(GetElementPtrInst *GEPI, Value *&base, Value *&bound, IRBuilder<> &IRB)
+    // {
+    //   StructType *STy = cast<StructType>(GEPI->getPointerOperandType()->getPointerElementType());
+    //   unsigned FieldIndex = cast<ConstantInt>(GEPI->getOperand(2))->getZExtValue(); // 필드 인덱스 가져오기
 
-      DataLayout DL(GEPI->getModule()); // DataLayout에서 구조체 크기 계산
-      const StructLayout *SL = DL.getStructLayout(STy);
+    //   DataLayout DL(GEPI->getModule()); // DataLayout에서 구조체 크기 계산
+    //   const StructLayout *SL = DL.getStructLayout(STy);
 
-      // 필드의 시작 위치와 끝 위치 계산
-      uint64_t FieldStart = SL->getElementOffset(FieldIndex);
-      uint64_t FieldSize = DL.getTypeAllocSize(STy->getElementType(FieldIndex));
-      uint64_t FieldEnd = FieldStart + FieldSize;
+    //   // 필드의 시작 위치와 끝 위치 계산
+    //   uint64_t FieldStart = SL->getElementOffset(FieldIndex);
+    //   uint64_t FieldSize = DL.getTypeAllocSize(STy->getElementType(FieldIndex));
+    //   uint64_t FieldEnd = FieldStart + FieldSize;
 
-      // 기존 base와 bound를 조정하여 필드 수준으로 설정
-      base = IRB.CreateGEP(base, IRB.getInt64(FieldStart));
-      bound = IRB.CreateGEP(base, IRB.getInt64(FieldEnd - FieldStart));
+    //   // 기존 base와 bound를 조정하여 필드 수준으로 설정
+    //   base = IRB.CreateGEP(base, IRB.getInt64(FieldStart));
+    //   bound = IRB.CreateGEP(base, IRB.getInt64(FieldEnd - FieldStart));
 
-      // 새롭게 계산된 base와 bound를 GEP와 연관시킴
-      associateBaseBound(GEPI, base, bound);
-    }
+    //   // 새롭게 계산된 base와 bound를 GEP와 연관시킴
+    //   associateBaseBound(GEPI, base, bound);
+    // }
     void handle_GEP(Instruction &I)
     {
       GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(&I);
@@ -1404,12 +1404,14 @@ namespace
         if (StructType *STy = dyn_cast<StructType>(PtrType))
         {
           // GEP가 구조체 필드를 참조하는 경우
-          handleStructGEP(GEPI, base, bound, IRB);
+          errs() << "handling struct type\n";
+          // handleStructGEP(GEPI, base, bound, IRB);
         }
         else if (PtrType->isArrayTy())
         {
           // GEP가 배열 요소를 참조하는 경우
-          handleArrayGEP(GEPI, base, bound, IRB);
+          errs() << "handling array type\n";
+          // handleArrayGEP(GEPI, base, bound, IRB);
         }
         else
         {
@@ -2148,6 +2150,7 @@ namespace
       ClAssociateZeroInitializedGlobalsWithOmnivalidMetadata = true;
       ClAssociateIntToPtrCastsWithOmnivalidMetadata = true;
       ClAssociateVaargPointerWithOmnivalidMetadata = true;
+      ClIntraObjectBounds = true;
       errs() << "**** DEBUG ****\n";
       setMetaData = M.getOrInsertFunction(
           "_softboundcets_set_metadata",

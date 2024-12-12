@@ -11,6 +11,7 @@
 //섀도우 메모리 포인터
 static int8_t* shadow_memory = (int8_t*)SHADOW_OFFSET;
 void *stack_addr;
+void *heap_addr;
 
 void allocate_shadow_memory();
 

@@ -188,7 +188,7 @@ void _softboundcets_bound_check(void *base, void *bound, void *access)
     return;
   bool OOB = false;
   bool UAF = false;
-  if (stack_addr < base)
+  if (stack_addr < base || base < heap_addr)
   {
     // stack OOB detection
     if (bound <= access)

@@ -16,7 +16,8 @@
 
 // func(arr, arr2);
 
-
+int test;
+int test2;
 // int *out_of_bound_access = (int *)(node + 1); // 구조체의 끝을 넘어가는 포인터
 // *out_of_bound_access = 0xdeadbeef;			  // 경계 외부 메모리에 쓰기
 struct teststruct
