@@ -758,7 +758,7 @@ namespace
         errs() << "disassociate\n";
         dissociateBaseBound(Val);
       }
-
+      errs() << "base is : " << &Base << "  bound is : " << &Bound << "\n";
       MValueBaseMap[Val] = {Base};
       MValueBoundMap[Val] = {Bound};
     }
@@ -1343,87 +1343,179 @@ namespace
 
       // vector의 경우 아직 고려하지 않음
     };
-    // void handleArrayGEP(GetElementPtrInst *GEPI, Value *&base, Value *&bound, IRBuilder<> &IRB)
-    // {
-    //   ArrayType *ATy = cast<ArrayType>(GEPI->getPointerOperandType()->getPointerElementType());
 
-    //   // GEP의 인덱스 값을 가져옴
-    //   Value *Index = GEPI->getOperand(2); // 배열 인덱스 (i32 또는 i64)
-
-    //   // 배열 요소의 크기 계산
-    //   DataLayout DL(GEPI->getModule());
-    //   uint64_t ElementSize = DL.getTypeAllocSize(ATy->getElementType());
-
-    //   // base와 bound를 배열 요소 수준으로 조정
-    //   base = IRB.CreateGEP(base, IRB.CreateMul(Index, IRB.getInt64(ElementSize)));
-    //   bound = IRB.CreateGEP(base, IRB.getInt64(ElementSize));
-
-    //   // 새롭게 계산된 base와 bound를 GEP와 연관시킴
-    //   associateBaseBound(GEPI, base, bound);
-    // }
-    // void handleStructGEP(GetElementPtrInst *GEPI, Value *&base, Value *&bound, IRBuilder<> &IRB)
-    // {
-    //   StructType *STy = cast<StructType>(GEPI->getPointerOperandType()->getPointerElementType());
-    //   unsigned FieldIndex = cast<ConstantInt>(GEPI->getOperand(2))->getZExtValue(); // 필드 인덱스 가져오기
-
-    //   DataLayout DL(GEPI->getModule()); // DataLayout에서 구조체 크기 계산
-    //   const StructLayout *SL = DL.getStructLayout(STy);
-
-    //   // 필드의 시작 위치와 끝 위치 계산
-    //   uint64_t FieldStart = SL->getElementOffset(FieldIndex);
-    //   uint64_t FieldSize = DL.getTypeAllocSize(STy->getElementType(FieldIndex));
-    //   uint64_t FieldEnd = FieldStart + FieldSize;
-
-    //   // 기존 base와 bound를 조정하여 필드 수준으로 설정
-    //   base = IRB.CreateGEP(base, IRB.getInt64(FieldStart));
-    //   bound = IRB.CreateGEP(base, IRB.getInt64(FieldEnd - FieldStart));
-
-    //   // 새롭게 계산된 base와 bound를 GEP와 연관시킴
-    //   associateBaseBound(GEPI, base, bound);
-    // }
-    void handle_GEP(Instruction &I)
+    bool checkBaseBoundMetadataPresent(Value *Op)
     {
-      GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(&I);
+      return MValueBaseMap.count(Op) && MValueBoundMap.count(Op);
+    }
+    bool checkMetadataPresent(Value *Op)
+    {
+      bool MetadataPresent = checkBaseBoundMetadataPresent(Op);
 
-      Value *GEPPtrOp = GEPI->getPointerOperand(); // GEP의 포인터 피연산자
-      IRBuilder<> IRB(GEPI->getNextNode());
-
-      // 기존의 포인터에 대한 메타데이터 가져오기
-      Value *base = getAssociatedBase(GEPPtrOp);
-      Value *bound = getAssociatedBound(GEPPtrOp);
-      if (!base || !bound)
+      return MetadataPresent;
+    }
+    void propagateMetadata(Value *Src, Instruction *Dest)
+    {
+      errs() << "Destination instruction is : " << *Dest << "\n";
+      if (checkMetadataPresent(Dest))
       {
-        errs() << "Error: Base or Bound metadata not found for GEP!\n";
         return;
       }
-      // GEP연산에서 base와 offset을 더해서 나온 access하는 주소를 구하는데, 여기서 base랑 bound를 구해서 access로 assoc 함
-      // associateBaseBound(GEPI, base, bound); // %ptr = base+offset, %ptr에 대한 base, bound
-      if (ClIntraObjectBounds)
+      errs() << "propagating instruction : " << *Dest << "\n";
+      auto Bases = TinyPtrVector<Value *>(getAssociatedBases(Src));
+      auto Bounds = TinyPtrVector<Value *>(getAssociatedBounds(Src));
+      for (auto &base : Bases)
       {
-        Type *PtrType = GEPI->getPointerOperandType()->getPointerElementType();
-        if (StructType *STy = dyn_cast<StructType>(PtrType))
+        errs() << "printing bases : " << base << "\n";
+      }
+      associateAggregateBaseBound(Dest, Bases, Bounds);
+    }
+
+    void debug_point_helper()
+    {
+      errs() << "*************DEBUG POINT************\n";
+    }
+    void handle_GEP(Instruction &I)
+    {
+      GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(&I);
+      Value *GEPPtrOp = GEP->getPointerOperand();
+      // we need to account for
+      // https://llvm.org/docs/LangRef.html#vector-of-pointers: in short; if a
+      // vector of offsets is used as indices, the result of the GEP is a vector. As
+      // we do not calculate subbounds for gep vectors, we need to associate each pointer in the
+      // resulting vector with the metadata of the GEPPtrOp
+      FixedVectorType *FixedVectorTy = dyn_cast<FixedVectorType>(GEP->getType());
+      if (FixedVectorTy && !isa<FixedVectorType>(GEPPtrOp->getType()))
+      {
+        auto VectorSize = FixedVectorTy->getElementCount().getKnownMinValue();
+        if (true)
         {
-          // GEP가 구조체 필드를 참조하는 경우
-          errs() << "handling struct type\n";
-          // handleStructGEP(GEPI, base, bound, IRB);
+          auto *Base = getAssociatedBase(GEPPtrOp);
+          auto *Bound = getAssociatedBound(GEPPtrOp);
+          SmallVector<Value *> Bases(VectorSize, Base);
+          SmallVector<Value *> Bounds(VectorSize, Bound);
+          auto *BaseVector = createMetadataVector(Bases, GEP);
+          auto *BoundVector = createMetadataVector(Bounds, GEP);
+          associateBaseBound(GEP, BaseVector, BoundVector);
         }
-        else if (PtrType->isArrayTy())
+      }
+      else if (ClIntraObjectBounds && !FixedVectorTy)
+      {
+
+        auto *GEPSrcTy = GEP->getSourceElementType();
+
+        // only narrow bounds if the GEP indexes a struct or a vector
+        // as detailed in the original paper, we don't want to narrow bounds if we
+        // index an array or only the pointer
+        bool GEPIndexesOnlyPtrAndArrays = true;
+        if (GEPSrcTy->isStructTy() || GEPSrcTy->isVectorTy())
         {
-          // GEP가 배열 요소를 참조하는 경우
-          errs() << "handling array type\n";
-          // handleArrayGEP(GEPI, base, bound, IRB);
+          if (GEP->getNumIndices() > 1)
+            GEPIndexesOnlyPtrAndArrays = false;
+        }
+
+        std::vector<Value *> GEPIndices(GEP->idx_begin(), GEP->idx_end());
+        for (; (GEPIndices.size() > 2); GEPIndices.pop_back())
+        {
+
+          auto IndexSlice =
+              std::vector<Value *>(GEPIndices.begin() + 1, GEPIndices.end() - 1);
+          auto *IndexedTy = GetElementPtrInst::getIndexedType(GEPSrcTy, GEPIndices);
+
+          if (IndexedTy->isStructTy() || IndexedTy->isVectorTy())
+          {
+            GEPIndexesOnlyPtrAndArrays = false;
+            break;
+          }
+        }
+
+        if (!GEPIndexesOnlyPtrAndArrays)
+        {
+
+          IRBuilder<> IRB(getNextInstruction(GEP));
+
+          // Calculate max(original base of GEPPtrOp, GEP)
+          auto *OriginalBase = getAssociatedBase(GEPPtrOp);
+
+          // we use the GEP as Base if we haven't removed any indices.
+          // otherwise we create a new GEP for the base
+
+          auto *GEPBase = (GEPIndices.size() == GEP->getNumIndices())
+                              ? GEP
+                              : IRB.CreateGEP(GEPSrcTy, GEPPtrOp, GEPIndices);
+
+          auto *GEPCast =
+              IRB.CreateBitCast(GEPBase, MVoidPtrTy, GEP->getName() + ".voidptr");
+          auto *CmpBases = IRB.CreateICmpUGT(OriginalBase, GEPCast);
+          auto *NewBase = IRB.CreateSelect(CmpBases, OriginalBase, GEPCast);
+
+          // Calculate min(original bound of GEPPtrOp, GEP+1)
+          auto *OriginalBound = getAssociatedBound(GEPPtrOp);
+
+          // ERROR POINT
+
+          errs() << *GEPBase << "\n";
+          errs() << *GEPSrcTy << "\n";
+          auto *CorrectedGEPBase = IRB.CreateBitCast(GEPBase, PointerType::getUnqual(GEPSrcTy));
+          auto *GEPBound = IRB.CreateGEP(GEPSrcTy, CorrectedGEPBase, IRB.getInt32(1), "");
+          // auto *GEPBound = IRB.CreateGEP(GEPBase->getType(), GEPBase, IRB.getInt32(1), "");
+
+          auto *GEPBoundCast =
+              IRB.CreateBitCast(GEPBound, MVoidPtrTy, GEP->getName() + ".voidptr");
+          auto *CmpBounds = IRB.CreateICmpULT(OriginalBound, GEPBoundCast);
+          auto *NewBound = IRB.CreateSelect(CmpBounds, OriginalBound, GEPBoundCast);
+          debug_point_helper();
+          errs() << "new base is : " << &NewBase << " new bound is : " << &NewBound << "\n";
+          associateBaseBound(GEP, NewBase, NewBound);
         }
         else
-        {
-          // GEP가 다른 타입을 참조할 경우 기본 처리
-          associateBaseBound(GEPI, base, bound);
-        }
+          propagateMetadata(GEPPtrOp, GEP);
       }
       else
-      {
-        // 기본 GEP 처리
-        associateBaseBound(GEPI, base, bound);
-      }
+        propagateMetadata(GEPPtrOp, GEP);
+      // GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(&I);
+
+      // Value *GEPPtrOp = GEPI->getPointerOperand(); // GEP의 포인터 피연산자
+      // FixedVectorType *FixedVectorTy = dyn_cast<FixedVectorType>(GEPI->getType());
+
+      // // 기존의 포인터에 대한 메타데이터 가져오기
+      // Value *base = getAssociatedBase(GEPPtrOp);
+      // Value *bound = getAssociatedBound(GEPPtrOp);
+      // if (!base || !bound)
+      // {
+      //   errs() << "Error: Base or Bound metadata not found for GEP!\n";
+      //   return;
+      // }
+      // // GEP연산에서 base와 offset을 더해서 나온 access하는 주소를 구하는데, 여기서 base랑 bound를 구해서 access로 assoc 함
+      // propagateMetadata(GEPPtrOp, GEPI);
+      // associateBaseBound(GEPI, base, bound); // %ptr = base+offset, %ptr에 대한 base, bound
+      // if (false)
+      // {
+      //   Type *PtrType = GEPI->getPointerOperandType()->getPointerElementType();
+      //   if (StructType *STy = dyn_cast<StructType>(PtrType))
+      //   {
+      //     // GEP가 구조체 필드를 참조하는 경우
+      //     errs() << "handling struct type\n";
+      //     // handleStructGEP(GEPI, base, bound, IRB);
+      //   }
+      //   else if (PtrType->isArrayTy())
+      //   {
+      //     // GEP가 배열 요소를 참조하는 경우
+      //     errs() << "handling array type\n";
+      //     // handleArrayGEP(GEPI, base, bound, IRB);
+      //   }
+      //   else
+      //   {
+      //     // GEP가 다른 타입을 참조할 경우 기본 처리
+      //     associateBaseBound(GEPI, base, bound);
+      //   }
+      // }
+      // else
+      // {
+      //   // 기본 GEP 처리
+      //   errs() << "processing default gep**********\n";
+      //   associateBaseBound(GEPI, base, bound);
+      // }
       // 새로운 GEP 명령어에 메타데이터 연결
     };
     bool isVaargGep(GetElementPtrInst *GepInst)
@@ -1533,28 +1625,25 @@ namespace
       }
     };
 
-    void handle_bitcast(Instruction &I)
+    void handle_bitcast(BitCastInst *BC)
     {
-      BitCastInst *BCI = dyn_cast<BitCastInst>(&I);
-      if (!BCI)
-        return;
+      Value *SrcPtr = BC->getOperand(0); // 원본 포인터
+      // Value *DstPtr = &I;                 // 변환된 포인터
+      propagateMetadata(SrcPtr, BC);
 
-      Value *SrcPtr = BCI->getOperand(0); // 원본 포인터
-      Value *DstPtr = &I;                 // 변환된 포인터
-
-      // 원본 포인터의 메타데이터 가져오기
+      // // 원본 포인터의 메타데이터 가져오기
       // errs() << "assoc in bitcast : " << *SrcPtr << "\n";
-      Value *Base = getAssociatedBase(SrcPtr);
-      Value *Bound = getAssociatedBound(SrcPtr);
+      // Value *Base = getAssociatedBase(SrcPtr);
+      // Value *Bound = getAssociatedBound(SrcPtr);
 
-      if (!Base || !Bound)
-      {
-        errs() << "Error: Base or Bound metadata not found for bitcast!\n";
-        return;
-      }
+      // if (!Base || !Bound)
+      // {
+      //   errs() << "Error: Base or Bound metadata not found for bitcast!\n";
+      //   return;
+      // }
 
-      // 새로운 포인터에 메타데이터 연관
-      associateBaseBound(DstPtr, Base, Bound);
+      // // 새로운 포인터에 메타데이터 연관
+      // associateBaseBound(DstPtr, Base, Bound);
     }
 
     size_t getNumPointerArgs(const CallBase *CB)
@@ -1879,7 +1968,7 @@ namespace
 
         if (!InsertAt)
         {
-          errs() << "Error: No valid non-PHI instruction found.\n";
+          // errs() << "Error: No valid non-PHI instruction found.\n";
           return;
         }
 
@@ -1897,7 +1986,7 @@ namespace
       {
         for (Instruction &I : BB)
         {
-          // errs() << "handling instruction : " << I << "\n";
+          errs() << "handling instruction : " << I << "\n";
           IRBuilder<> IRB(&I);
           switch (I.getOpcode())
           {
@@ -1922,8 +2011,15 @@ namespace
             break;
           }
           case Instruction::BitCast:
-            handle_bitcast(I);
-            break;
+          {
+
+            auto *BC = dyn_cast<BitCastInst>(&I);
+            if (isTypeWithPointers(BC->getType()))
+            {
+              handle_bitcast(BC);
+            }
+          }
+          break;
           case Instruction::Call:
             handle_call(I);
             break;
@@ -2011,7 +2107,7 @@ namespace
     {
       // If the function name starts with this prefix, don't just
       // concatenate, but instead transform the string
-      errs() << "rename complete\n";
+      // errs() << "rename complete\n";
       return "_softboundcets_" + str;
     }
     void renameFunctionName(Function *F, Module &M,
@@ -2024,7 +2120,7 @@ namespace
 
       if (!MFunctionWrappersAvailable.count(FName))
       {
-        errs() << "returing......................" << FName << "\n";
+        // errs() << "returing......................" << FName << "\n";
         return;
       }
 
@@ -2034,7 +2130,7 @@ namespace
       {
         Params.push_back(Arg.getType());
       }
-      errs() << "renaming function : " << FName << "\n";
+      // errs() << "renaming function : " << FName << "\n";
       // check if we have loaded the rt-lib bitcode into the module already
       auto *FunctionWrapper = M.getFunction(transformFunctionName(FName.str()));
 
@@ -2042,7 +2138,7 @@ namespace
       // linking
       if (!FunctionWrapper)
       {
-        errs() << "Defining wrapper function : " << FName.str() << "\n";
+        // errs() << "Defining wrapper function : " << FName.str() << "\n";
         FunctionType *FWrapperTy =
             FunctionType::get(RetTy, Params, FTy->isVarArg());
         FunctionWrapper = Function::Create(FWrapperTy, F->getLinkage(),
@@ -2245,7 +2341,7 @@ namespace
       appendToGlobalCtors(M, CtorFunc, 0, nullptr);
       for (Function &F : M)
       {
-        errs() << F.getName() << "\n";
+        // errs() << F.getName() << "\n";
         collect_metadata(F);
         insert_func(F);
       }

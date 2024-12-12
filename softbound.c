@@ -184,6 +184,7 @@ void _softboundcets_print_metadata_table()
 
 void _softboundcets_bound_check(void *base, void *bound, void *access)
 {
+  printf("base : %p, bound : %p, access : %p\n",base,bound,access);
   if (!base)
     return;
   bool OOB = false;
